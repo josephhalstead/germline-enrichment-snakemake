@@ -1,0 +1,76 @@
+{
+    "__default__" :
+    {
+        "walltime" : "12:00:00",
+        "ncpus" : 12
+    },
+    "create_gvcfs" :
+    {
+        "walltime" : "6:00:00",
+        "ncpus" : 4
+    },
+    "create_genomics_db" :
+    {
+        "walltime" : "6:00:00",
+        "ncpus" : 4
+    },
+    "genotype_gvcfs" :
+    {
+        "walltime" : "6:00:00",
+        "ncpus" : 4
+    },
+
+    "merge_and_remove_duplicates" :
+    {
+        "walltime" : "6:00:00",
+        "ncpus" : 6
+    },
+
+    "collect_insert_size_metrics" :
+    {
+        "walltime" : "6:00:00",
+        "ncpus" : 4
+    },
+
+    "collect_hs_metrics" :
+    {
+        "walltime" : "6:00:00",
+        "ncpus" : 4
+    },
+
+    "verify_bam_id" :
+    {
+        "walltime" : "6:00:00",
+        "ncpus" : 4
+    },
+
+    "collect_alignment_metrics" :
+    {
+        "walltime" : "6:00:00",
+        "ncpus" : 4
+    },
+
+    "generate_per_base_coverage" :
+    {
+        "walltime" : "6:00:00",
+        "ncpus" : 4
+    },
+
+    "calculate_sex" :
+    {
+        "walltime" : "6:00:00",
+        "ncpus" : 2
+    },
+
+
+
+
+
+
+
+
+
+
+
+
+}

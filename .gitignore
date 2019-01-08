@@ -1,0 +1,7 @@
+input/
+.DS_Store
+.snakemake
+output/
+logs/
+test.yaml
+local.yaml

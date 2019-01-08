@@ -1,0 +1,130 @@
+# Resource Locations
+
+bwa_reference:
+  /state/partition1/db/human/mappers/b37/bwa/human_g1k_v37.fasta
+reference:
+  /state/partition1/db/human/gatk/2.8/b37/human_g1k_v37.fasta
+reference_index:
+  /state/partition1/db/human/gatk/2.8/b37/human_g1k_v37.fasta.fai
+dbsnp_vcf:
+  /state/partition1/db/human/gatk/2.8/b37/dbsnp_138.b37.vcf
+indels_1k_vcf:
+  /state/partition1/db/human/gatk/2.8/b37/1000G_phase1.indels.b37.vcf
+gold_standard_indels:
+  /state/partition1/db/human/gatk/2.8/b37/Mills_and_1000G_gold_standard.indels.b37.vcf
+dbsnp_vcf_eval:
+  /state/partition1/db/human/gatk/2.8/b37/dbsnp_138.b37.excluding_sites_after_129.vcf
+gnomad_exomes:
+  /data/db/human/gnomad/gnomad.exomes.r2.0.1.sites.vcf.gz
+gnomad_genomes:
+  /data/db/human/vep/snps/gnomad.genomes.r2.0.1.sites.noVEP.vcf.gz
+1000k_high_confidence_snps:
+  /state/partition1/db/human/gatk/2.8/b37/1000G_phase1.snps.high_confidence.b37.vcf
+capture_bed_file:
+  /share/data/results/181214_D00501_0264_BHMHMLBCX2/IlluminaTruSightOne/gatk_snakemake/configs/IlluminaTruSightOne/IlluminaTruSightOne_ROI_b37.bed 
+fastq_screen_config:
+  /share/apps/fastqscreen-distros/fastq_screen_v0.10.0/fastq_screen.conf
+reference_sequence_dict:
+  /state/partition1/db/human/gatk/2.8/b37/human_g1k_v37.dict
+vep_cache_location:
+  /data/db/human/vep/vep_cache
+genomic_superdups_bed:
+  /data/db/human/genomicSuperDups/genomicSuperDups_b37.bed.gz
+picard_temp_dir:
+  /state/partition1/tmpdir
+fastqc_temp_dir:
+  /state/partition1/tmpdir
+samtools_temp_dir:
+  /state/partition1/tmpdir
+hotspot_bed_dir:
+  test
+
+
+# Alternate pipeline execution
+
+perform_bqsr:
+  true
+
+# Variant Filtering Options
+
+# SNPS
+snp_min_qual:
+  30.0
+snp_min_QD:
+  2.0
+snp_max_FS:
+  60.0
+snp_min_MQ:
+  40.0
+snp_min_MQRankSum:
+  -12.5
+snp_min_ReadPosRankSum:
+  -8.0
+
+# Non SNPs
+indel_min_qual:
+  30.0
+indel_min_QD:
+  2.0
+indel_max_FS:
+  200.0
+indel_max_SOR:
+  10.0
+indel_min_ReadPosRankSum:
+  -20.0
+indel_min_inbreeding_coeff:
+  -0.8
+min_genotype_depth:
+  10.0
+
+# Min Coverage Cut Off
+minimum_coverage:
+  20
+
+
+# Threads to Use
+variant_evaluation_threads:
+  6
+bwa_threads:
+  12
+fastp_threads:
+  12
+fastq_screen_threads:
+  12
+fastqc_threads:
+  12
+manta_threads:
+  12
+vep_threads:
+  12
+
+# Java Options
+java_home:
+  /home/transfer/miniconda3/envs/germline_enrichment_main/bin/java
+gatk_hc_java_options:
+  "-XX:GCTimeLimit=50 -XX:GCHeapFreeLimit=10 -Djava.io.tmpdir=/state/partition1/tmpdir/ -Xmx16g"
+gatk_bqsr_java_options:
+  "-XX:GCTimeLimit=50 -XX:GCHeapFreeLimit=10 -Djava.io.tmpdir=/state/partition1/tmpdir/ -Xmx4g"
+gatk_analyse_covariates_java_options:
+  "-XX:GCTimeLimit=50 -XX:GCHeapFreeLimit=10 -Djava.io.tmpdir=/state/partition1/tmpdir/ -Xmx2g"
+gatk_variants_java_options:
+ "-XX:GCTimeLimit=50 -XX:GCHeapFreeLimit=10 -Djava.io.tmpdir=/state/partition1/tmpdir/ -Xmx4g"
+gatk_genomics_db_java_options:
+  "-XX:GCTimeLimit=50 -XX:GCHeapFreeLimit=10 -Djava.io.tmpdir=/state/partition1/tmpdir/ -Xmx12g"
+picard_memory_options:
+  "-XX:GCTimeLimit=50 -XX:GCHeapFreeLimit=10 -Djava.io.tmpdir=/state/partition1/tmpdir/ -Xmx20g"
+
+# Misc Settings
+# Max records in picard MarkDuplicates
+merge_duplicates_max_records:
+  2000000
+chromosomes:
+  ['1', '2', '3', '4', '5', '6', '7', '8', '9', '10', '11', '12', '13', '14', '15', '16', '17', '18', '19', '20', '21', '22', 'X', 'Y', 'MT']
+interval_padding_bqsr:
+  100
+interval_padding_haplotype_caller:
+  100
+
+# Run Level Information
+centre:
+  AWGL

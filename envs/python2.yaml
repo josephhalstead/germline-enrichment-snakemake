@@ -1,0 +1,7 @@
+name: germline_enrichment_python2
+channels:
+- bioconda
+dependencies:
+- python = 2.7
+- manta = 1.5.0 
+- peddy = 0.4.3
