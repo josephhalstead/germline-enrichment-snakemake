@@ -1053,7 +1053,7 @@ rule gather_qc_metrics:
 # Relatedness Testing
 rule relatedness_test:
 	input:
-		"output/jointvcf_all_variants_filtered_genotype_vep_roi_meta/{seq_id}_all_variants_filtered_genotype_vep_roi_meta.vcf"
+		"output/jointvcf_all_variants_filtered_genotype_roi/{seq_id}_all_variants_filtered_genotype_roi.vcf"
 	output:
 		"output/qc_reports/relatedness/{seq_id}.relatedness2",
 	shell:
