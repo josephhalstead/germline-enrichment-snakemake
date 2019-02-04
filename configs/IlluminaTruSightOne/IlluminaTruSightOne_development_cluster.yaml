@@ -38,6 +38,10 @@ samtools_temp_dir:
   /state/partition1/tmpdir
 hotspot_bed_dir:
   test
+spliceai:
+  /data/db/human/SpliceAI/exome_spliceai_scores.vcf.gz
+ccr_bed:
+  /data/db/human/CCR/ccrs.all.v2.20180420_37.bed.gz
 
 
 # Alternate pipeline execution

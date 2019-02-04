@@ -83,8 +83,8 @@ rule create_ped_file:
 # Run the fastp program to generate a read quality report and trim read adapters and by quality
 rule fastp:
 	input:
-		fwd = "input/{sample_name}/{sample_name}_{sample_number}_{lane}_R1_001.fastq.gz",
-		rev = "input/{sample_name}/{sample_name}_{sample_number}_{lane}_R2_001.fastq.gz"
+		fwd = "{sample_name}/{sample_name}_{sample_number}_{lane}_R1_001.fastq.gz",
+		rev = "{sample_name}/{sample_name}_{sample_number}_{lane}_R2_001.fastq.gz"
 	output:
 		html = "output/qc_reports/fastp/{sample_name}_{sample_number}_{lane}_fastp.html",
 		json = "output/qc_reports/fastp/{sample_name}_{sample_number}_{lane}_fastp.json",
@@ -99,15 +99,14 @@ rule fastp:
 		"-O {output.rev} "
 		"-h {output.html} "
 		"-j {output.json} "
-		"--cut_by_quality3 "
 		"--detect_adapter_for_pe "
 		"-w {threads}"
 
 # Check for inter-species contamination
 rule fastq_screen:
 	input:
-		fwd = "input/{sample_name}/{sample_name}_{sample_number}_{lane}_R1_001.fastq.gz",
-		rev = "input/{sample_name}/{sample_name}_{sample_number}_{lane}_R2_001.fastq.gz"
+		fwd = "{sample_name}/{sample_name}_{sample_number}_{lane}_R1_001.fastq.gz",
+		rev = "{sample_name}/{sample_name}_{sample_number}_{lane}_R2_001.fastq.gz"
 	output:
 		"output/qc_reports/fastq_screen/{sample_name}_{sample_number}_{lane}_R1_001_screen.html",
 		"output/qc_reports/fastq_screen/{sample_name}_{sample_number}_{lane}_R1_001_screen.png",
@@ -745,24 +744,62 @@ rule filter_genotypes:
 		"--genotype-filter-name 'LowDP' "
 
 
+# Compress and index the filtered vcf
+rule compress_and_index_filtered_vcf:
+	input:
+		"output/jointvcf_all_variants_filtered_genotype/{seq_id}_all_variants_filtered_genotype.vcf"
+	output:
+		"output/jointvcf_all_variants_filtered_genotype/{seq_id}_all_variants_filtered_genotype.vcf.gz",
+		"output/jointvcf_all_variants_filtered_genotype/{seq_id}_all_variants_filtered_genotype.vcf.gz.tbi"
+	shell:
+		"bgzip {input} && tabix {input}.gz"	
 
 
+# Filter out variants outside of ROI
+rule filter_by_roi:
+	input:
+		vcf = "output/jointvcf_all_variants_filtered_genotype/{seq_id}_all_variants_filtered_genotype.vcf.gz",
+		index = "output/jointvcf_all_variants_filtered_genotype/{seq_id}_all_variants_filtered_genotype.vcf.gz.tbi"
+	output:
+		"output/jointvcf_all_variants_filtered_genotype_roi/{seq_id}_all_variants_filtered_genotype_roi.vcf"
+	params:
+		bed = config["capture_bed_file"]
+	shell:
+		"bcftools view -R {params.bed} "
+		"{input.vcf} > {output} "
 
+# Use vt to split multiallelics and normalise variants
+rule decompose_and_normalise:
+	input:
+		"output/jointvcf_all_variants_filtered_genotype_roi/{seq_id}_all_variants_filtered_genotype_roi.vcf"
+	output:
+		"output/jointvcf_all_variants_filtered_genotype_roi_norm/{seq_id}_all_variants_filtered_genotype_roi_norm.vcf"
+	params:
+		ref = config["reference"]
+	shell:
+		"cat {input} | "
+		"vt decompose -s - | "
+		"vt normalize -r {params.ref} - > {output}"
 
+	
 #-----------------------------------------------------------------------------------------------------------------#
 # Variant Annotation
 #-----------------------------------------------------------------------------------------------------------------#
 
+
 # Annotate the vcf using VEP
 rule annotate_vep:
 	input:
-		"output/jointvcf_all_variants_filtered_genotype/{seq_id}_all_variants_filtered_genotype.vcf"
+		"output/jointvcf_all_variants_filtered_genotype_roi_norm/{seq_id}_all_variants_filtered_genotype_roi_norm.vcf"
 	output:
-		"output/jointvcf_all_variants_filtered_genotype_vep/{seq_id}_all_variants_filtered_genotype_vep.vcf"
+		"output/jointvcf_all_variants_filtered_genotype_roi_norm_vep/{seq_id}_all_variants_filtered_genotype_roi_norm_vep.vcf"
 	params:
 		vep_cache = config["vep_cache_location"],
 		ref = config["reference"],
-		gnomad_genomes = config["gnomad_genomes"]
+		gnomad_genomes = config["gnomad_genomes"],
+		gnomad_exomes = config["gnomad_exomes"],
+		ccr_bed = config["ccr_bed"],
+		spliceai = config["spliceai"]
 	threads:
 		config["vep_threads"]
 	shell:
@@ -780,37 +817,29 @@ rule annotate_vep:
 		"--fasta {params.ref} "
 		"--offline "
 		"--cache_version 94 "
-		"--allele_number "
 		"--no_escape "
 		"--shift_hgvs 1 "
 		"--vcf "
-		"--minimal "
 		"--refseq "
-		"-custom {params.gnomad_genomes},gnomADg,vcf,exact,0,AF_AFR,AF_AMR,AF_ASJ,AF_EAS,AF_FIN,AF_NFE,AF_OTH,AF_POPMAX"
+		"--flag_pick "
+		"--pick_order biotype,canonical,appris,tsl,ccds,rank,length "
+		"--exclude_predicted "
+		"--custom {params.gnomad_genomes},gnomADg,vcf,exact,0,AF_AFR,AF_AMR,AF_ASJ,AF_EAS,AF_FIN,AF_NFE,AF_OTH,AF_POPMAX "
+		"--custom {params.gnomad_exomes},gnomADe,vcf,exact,0,AF_POPMAX "
+		"--custom {params.ccr_bed},ccrs,bed,overlap,0 "
+		"--custom {params.spliceai},SpliceAI,vcf,exact,0,DS_AG,DS_AL,DS_DG,DS_DL,SYMBOL "
 
-# Compress the vcf and index it for roi filtering later
-rule compress_and_index_vep_vcf:
+# Convert vcf to csv
+rule convert_to_csv:
 	input:
-		"output/jointvcf_all_variants_filtered_genotype_vep/{seq_id}_all_variants_filtered_genotype_vep.vcf"
+		"output/jointvcf_all_variants_filtered_genotype_roi_norm_vep/{seq_id}_all_variants_filtered_genotype_roi_norm_vep.vcf"
 	output:
-		"output/jointvcf_all_variants_filtered_genotype_vep/{seq_id}_all_variants_filtered_genotype_vep.vcf.gz",
-		"output/jointvcf_all_variants_filtered_genotype_vep/{seq_id}_all_variants_filtered_genotype_vep.vcf.gz.tbi",
+		"output/vcf_csv/{seq_id}_vcf_csv.csv"
 	shell:
-		"bgzip {input} && tabix {input}.gz"
-
-
-# Filter out variants outside of ROI
-rule filter_by_roi:
-	input:
-		vcf = "output/jointvcf_all_variants_filtered_genotype_vep/{seq_id}_all_variants_filtered_genotype_vep.vcf.gz",
-		index = "output/jointvcf_all_variants_filtered_genotype_vep/{seq_id}_all_variants_filtered_genotype_vep.vcf.gz.tbi"
-	output:
-		"output/jointvcf_all_variants_filtered_genotype_vep_roi/{seq_id}_all_variants_filtered_genotype_vep_roi.vcf"
-	params:
-		bed = config["capture_bed_file"]
-	shell:
-		"bcftools view -R {params.bed} "
-		"{input.vcf} > {output} "
+		"gatk VariantsToTable -V {input} "
+		"-O {output} -F CHROM -F POS -F REF -F ALT -F ID -F QUAL -F FILTER -F CSQ -F AC "
+		"-GF GT -GF GQ -GF DP"
+		
 
 # Merge the metadata from all samples into a single file
 rule collect_meta_data:
@@ -825,10 +854,10 @@ rule collect_meta_data:
 # Add metadata to vcf header for variant database import
 rule add_meta_to_vcf:
 	input:
-		vcf = "output/jointvcf_all_variants_filtered_genotype_vep_roi/{seq_id}_all_variants_filtered_genotype_vep_roi.vcf",
+		vcf = "output/jointvcf_all_variants_filtered_genotype_roi/{seq_id}_all_variants_filtered_genotype_roi.vcf",
 		meta = "output/vcf_meta/merged_meta.txt"
 	output:
-		"output/jointvcf_all_variants_filtered_genotype_vep_roi_meta/{seq_id}_all_variants_filtered_genotype_vep_roi_meta.vcf"
+		"output/jointvcf_all_variants_filtered_genotype_roi_meta/{seq_id}_all_variants_filtered_genotype_roi_meta.vcf"
 	shell:
 		"""
 		 grep '^##' {input.vcf} > {output}
@@ -836,10 +865,20 @@ rule add_meta_to_vcf:
 		 grep -v '^##' {input.vcf} >> {output}
 		"""
 
+# Exclude Mitochrondial variants for inclusion in variant database
+rule create_vcf_without_mt:
+	input:
+		"output/jointvcf_all_variants_filtered_genotype_roi_meta/{seq_id}_all_variants_filtered_genotype_roi_meta.vcf"
+	output:
+		"output/jointvcf_all_variants_filtered_genotype_roi_meta_nomt/{seq_id}_all_variants_filtered_genotype_roi_meta_nomt.vcf"
+	shell:
+		"awk '$1 !~ /^MT/ {{ print $0 }}' {input} > {output}"
+
+
 # Check the final vcf in valid
 rule validate_vcf:
 	input:
-		"output/jointvcf_all_variants_filtered_genotype_vep_roi_meta/{seq_id}_all_variants_filtered_genotype_vep_roi_meta.vcf"
+		"output/jointvcf_all_variants_filtered_genotype_roi_norm_vep/{seq_id}_all_variants_filtered_genotype_roi_norm_vep.vcf"
 	output:
 		"output/validated_vcf/{seq_id}.validated"
 	params:
@@ -850,15 +889,6 @@ rule validate_vcf:
 		"-R {params.ref} "
 		"&& touch {output}"
 
-# Exclude Mitochrondial variants for inclusion in variant database
-rule create_vcf_without_mt:
-	input:
-		"output/jointvcf_all_variants_filtered_genotype_vep_roi_meta/{seq_id}_all_variants_filtered_genotype_vep_roi_meta.vcf",
-	output:
-		"output/jointvcf_all_variants_filtered_genotype_vep_roi_meta_nomt/{seq_id}_all_variants_filtered_genotype_vep_roi_meta_nomt.vcf",
-	shell:
-		"awk '$1 !~ /^MT/ {{ print $0 }}' {input} > {output}"
-
 
 #-----------------------------------------------------------------------------------------------------------------#
 # Final QC checks
@@ -867,7 +897,7 @@ rule create_vcf_without_mt:
 # Evaluate variant calling - need sex and rawSequenceQuality inputs
 rule variant_evaluation:
 	input:
-		"output/jointvcf_all_variants_filtered_genotype_vep/{seq_id}_all_variants_filtered_genotype_vep.vcf.gz"
+		"output/jointvcf_all_variants_filtered_genotype_roi_norm_vep/{seq_id}_all_variants_filtered_genotype_roi_norm_vep.vcf"
 	output:
 		"output/qc_reports/variant_calling_metrics/{seq_id}.variant_calling_detail_metrics",
 		"output/qc_reports/variant_calling_metrics/{seq_id}.variant_calling_summary_metrics"
@@ -1120,6 +1150,7 @@ rule make_cnv_bed:
 	params:
 		genomic_superdups_bed = config["genomic_superdups_bed"],
 		ref_index = config["reference_index"],
+	group: "cnv"
 	shell:
 		"bedtools slop -i {input} "
 		"-g {params.ref_index} "
@@ -1140,6 +1171,7 @@ rule change_bam_indexes:
 		bam_index = "output/final_bam/{sample_name}_{sample_number}_final.bai"
 	output:
 		bam_index = "output/final_bam/{sample_name}_{sample_number}_final.bam.bai"
+	group: "cnv"
 	shell:
 		"cp {input.bam_index} {output.bam_index}"
 
@@ -1159,6 +1191,7 @@ rule call_cnvs:
 		prefix = "output/exome_depth/",
 		sequence_dict = config["reference_sequence_dict"],
 		java_home = config["java_home"]
+	group: "cnv"
 	shell:
 		"export JAVA_HOME={params.java_home}; bash scripts/call_cnvs.sh {input.bam_list} {params.ref} {input.bed} {params.seq_id} {params.prefix} {params.sequence_dict}"
 
@@ -1168,6 +1201,7 @@ rule collect_cnvs:
 		dynamic("output/exome_depth/{sample_name}_final_cnv.vcf")
 	output:
 		"output/exome_depth/finished_cnv.txt"
+	group: "cnv"
 	shell:
 		"touch {output}"
 
@@ -1251,7 +1285,8 @@ if config["perform_bqsr"] == True:
 			"output/validated_vcf/{seq_id}.validated",
 			"output/exome_depth/finished_cnv.txt",
 			expand("output/manta/{sample_name}_{sample_number}/results/variants/diploidSV.vcf.gz", zip, sample_name=sample_names, sample_number=sample_numbers),
-			"output/jointvcf_all_variants_filtered_genotype_vep_roi_meta_nomt/{seq_id}_all_variants_filtered_genotype_vep_roi_meta_nomt.vcf",
+			"output/jointvcf_all_variants_filtered_genotype_roi_norm_vep/{seq_id}_all_variants_filtered_genotype_roi_norm_vep.vcf",
+			"output/jointvcf_all_variants_filtered_genotype_roi_meta_nomt/{seq_id}_all_variants_filtered_genotype_roi_meta_nomt.vcf",
 			expand("output/qc_reports/bqsr/{sample_name}_{sample_number}_bqsr_covariation.csv", zip, sample_name=sample_names, sample_number=sample_numbers),
 			"output/qc_reports/multiqc/" + seq_id + ".html",
 			"output/qc_reports/combined_qc/" + seq_id + "_combined_QC.txt"
@@ -1270,7 +1305,8 @@ else:
 				"output/validated_vcf/{seq_id}.validated",
 				"output/exome_depth/finished_cnv.txt",
 				expand("output/manta/{sample_name}_{sample_number}/results/variants/diploidSV.vcf.gz", zip, sample_name=sample_names, sample_number=sample_numbers),
-				"output/jointvcf_all_variants_filtered_genotype_vep_roi_meta_nomt/{seq_id}_all_variants_filtered_genotype_vep_roi_meta_nomt.vcf",
+				"output/jointvcf_all_variants_filtered_genotype_roi_norm_vep/{seq_id}_all_variants_filtered_genotype_roi_norm_vep.vcf",
+				"output/jointvcf_all_variants_filtered_genotype_roi_meta_nomt/{seq_id}_all_variants_filtered_genotype_roi_meta_nomt.vcf",
 				"output/qc_reports/multiqc/" + seq_id + ".html",
 				"output/qc_reports/combined_qc/" + seq_id + "_combined_QC.txt",
 				"output/combined_sv_report/" + seq_id + "_cnvReport.csv",
@@ -1288,7 +1324,8 @@ else:
 				"output/validated_vcf/{seq_id}.validated",
 				"output/exome_depth/finished_cnv.txt",
 				expand("output/manta/{sample_name}_{sample_number}/results/variants/diploidSV.vcf.gz", zip, sample_name=sample_names, sample_number=sample_numbers),
-				"output/jointvcf_all_variants_filtered_genotype_vep_roi_meta_nomt/{seq_id}_all_variants_filtered_genotype_vep_roi_meta_nomt.vcf",
+				"output/jointvcf_all_variants_filtered_genotype_roi_norm_vep/{seq_id}_all_variants_filtered_genotype_roi_norm_vep.vcf",
+				"output/jointvcf_all_variants_filtered_genotype_roi_meta_nomt/{seq_id}_all_variants_filtered_genotype_roi_meta_nomt.vcf",
 				"output/qc_reports/multiqc/" + seq_id + ".html",
 				"output/qc_reports/combined_qc/" + seq_id + "_combined_QC.txt"
 			output:
