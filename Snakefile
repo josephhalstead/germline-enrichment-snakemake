@@ -25,11 +25,11 @@ config_location = "test.yaml"
 configfile: config_location
 
 # How many lanes do we have?
-folder, name, lanes = glob_wildcards("input/{folder}/{sample_number}_{lane}_R1_001.fastq.gz")
+folder, name, lanes = glob_wildcards("{folder}/{sample_number}_{lane}_R1_001.fastq.gz")
 lanes =  list((set(lanes)))
 
 # What are our samples and sample numbers?
-folder, sample_names, sample_numbers = glob_wildcards("input/{folder}/{sample_name}_{sample_number}_L001_R1_001.fastq.gz")
+folder, sample_names, sample_numbers = glob_wildcards("{folder}/{sample_name}_{sample_number}_L001_R1_001.fastq.gz")
 
 # Get other data from config file
 chromosomes = config["chromosomes"]
