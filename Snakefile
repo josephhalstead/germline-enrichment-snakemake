@@ -763,7 +763,7 @@ rule filter_by_roi:
 	output:
 		"output/jointvcf_all_variants_filtered_genotype_roi/{seq_id}_all_variants_filtered_genotype_roi.vcf"
 	params:
-		bed = config["capture_bed_file"]
+		bed = config["capture_bed_file"],
 		ref = config["reference"]
 	shell:
 		"bcftools view -R {params.bed} {input.vcf} | "
