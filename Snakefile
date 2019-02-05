@@ -1150,7 +1150,6 @@ rule make_cnv_bed:
 	params:
 		genomic_superdups_bed = config["genomic_superdups_bed"],
 		ref_index = config["reference_index"],
-	group: "cnv"
 	shell:
 		"bedtools slop -i {input} "
 		"-g {params.ref_index} "
@@ -1171,7 +1170,6 @@ rule change_bam_indexes:
 		bam_index = "output/final_bam/{sample_name}_{sample_number}_final.bai"
 	output:
 		bam_index = "output/final_bam/{sample_name}_{sample_number}_final.bam.bai"
-	group: "cnv"
 	shell:
 		"cp {input.bam_index} {output.bam_index}"
 
@@ -1191,7 +1189,6 @@ rule call_cnvs:
 		prefix = "output/exome_depth/",
 		sequence_dict = config["reference_sequence_dict"],
 		java_home = config["java_home"]
-	group: "cnv"
 	shell:
 		"export JAVA_HOME={params.java_home}; bash scripts/call_cnvs.sh {input.bam_list} {params.ref} {input.bed} {params.seq_id} {params.prefix} {params.sequence_dict}"
 
@@ -1201,7 +1198,6 @@ rule collect_cnvs:
 		dynamic("output/exome_depth/{sample_name}_final_cnv.vcf")
 	output:
 		"output/exome_depth/finished_cnv.txt"
-	group: "cnv"
 	shell:
 		"touch {output}"
 
