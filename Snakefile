@@ -764,9 +764,10 @@ rule filter_by_roi:
 		"output/jointvcf_all_variants_filtered_genotype_roi/{seq_id}_all_variants_filtered_genotype_roi.vcf"
 	params:
 		bed = config["capture_bed_file"]
+		ref = config["reference"]
 	shell:
-		"bcftools view -R {params.bed} "
-		"{input.vcf} > {output} "
+		"bcftools view -R {params.bed} {input.vcf} | "
+		"vt normalize -r {params.ref} - > {output} "
 
 # Use vt to split multiallelics and normalise variants
 rule decompose_and_normalise:
@@ -829,14 +830,24 @@ rule annotate_vep:
 		"--custom {params.ccr_bed},ccrs,bed,overlap,0 "
 		"--custom {params.spliceai},SpliceAI,vcf,exact,0,DS_AG,DS_AL,DS_DG,DS_DL,SYMBOL "
 
-# Convert vcf to csv
-rule convert_to_csv:
+rule compress_and_index_vep:
 	input:
 		"output/jointvcf_all_variants_filtered_genotype_roi_norm_vep/{seq_id}_all_variants_filtered_genotype_roi_norm_vep.vcf"
 	output:
-		"output/vcf_csv/{seq_id}_vcf_csv.csv"
+		"output/jointvcf_all_variants_filtered_genotype_roi_norm_vep/{seq_id}_all_variants_filtered_genotype_roi_norm_vep.vcf.gz",
+		"output/jointvcf_all_variants_filtered_genotype_roi_norm_vep/{seq_id}_all_variants_filtered_genotype_roi_norm_vep.vcf.tbi"
 	shell:
-		"gatk VariantsToTable -V {input} "
+		"bgzip {input} && tabix {input}.gz"	
+
+# Convert vcf to csv
+rule convert_to_csv:
+	input:
+		vcf = "output/jointvcf_all_variants_filtered_genotype_roi_norm_vep/{seq_id}_all_variants_filtered_genotype_roi_norm_vep.vcf.gz",
+		index = "output/jointvcf_all_variants_filtered_genotype_roi_norm_vep/{seq_id}_all_variants_filtered_genotype_roi_norm_vep.vcf.tbi"
+	output:
+		"output/vcf_csv/{seq_id}_vcf.csv"
+	shell:
+		"gatk VariantsToTable -V {input.vcf} "
 		"-O {output} -F CHROM -F POS -F REF -F ALT -F ID -F QUAL -F FILTER -F CSQ -F AC "
 		"-GF GT -GF GQ -GF DP"
 		
@@ -897,7 +908,7 @@ rule validate_vcf:
 # Evaluate variant calling - need sex and rawSequenceQuality inputs
 rule variant_evaluation:
 	input:
-		"output/jointvcf_all_variants_filtered_genotype_roi_norm_vep/{seq_id}_all_variants_filtered_genotype_roi_norm_vep.vcf"
+		"output/jointvcf_all_variants_filtered_genotype/{seq_id}_all_variants_filtered_genotype.vcf.gz"
 	output:
 		"output/qc_reports/variant_calling_metrics/{seq_id}.variant_calling_detail_metrics",
 		"output/qc_reports/variant_calling_metrics/{seq_id}.variant_calling_summary_metrics"
@@ -985,7 +996,7 @@ rule gather_qc_metrics:
 		fastqc_rev = expand("output/qc_reports/fastqc/{{sample_name}}_{{sample_number}}_{lane}_R2_001.qfilter_fastqc/summary.txt", lane =lanes),
 		sex = "output/qc_reports/sex/{sample_name}_{sample_number}_sex.txt"
 	output:
-		summary = "input/{sample_name}/{sample_name}_{sample_number}_QC.txt",
+		summary = "{sample_name}/{sample_name}_{sample_number}_QC.txt",
 		high_coverage = "output/qc_reports/high_coverage_bams/{sample_name}_{sample_number}_high_coverage.txt",
 		meta = "output/vcf_meta/{sample_name}_{sample_number}_meta.txt"
 	params:
@@ -1064,11 +1075,11 @@ rule relatedness_test:
 # Merge all the sample QC summaries into a single file
 rule create_merged_qc:
 	input:
-		expand("input/{sample_name}/{sample_name}_{sample_number}_QC.txt", zip, sample_name=sample_names, sample_number=sample_numbers)
+		expand("{sample_name}/{sample_name}_{sample_number}_QC.txt", zip, sample_name=sample_names, sample_number=sample_numbers)
 	output:
 		"output/qc_reports/combined_qc/" + seq_id + "_combined_QC.txt"
 	shell:
-		"python scripts/merge_qc_files.py input/; mv input/combined_QC.txt {output}"
+		"python scripts/merge_qc_files.py . ; mv combined_QC.txt {output}"
 
 # Multiqc to compile all qc data into one file
 rule multiqc:
