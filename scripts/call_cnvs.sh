@@ -1,3 +1,6 @@
+## Script for calling exome depth and adding vcf headers
+## Only to be used as part of gatk snakemake pipeline.
+
 
 BAM_LIST=$1
 REF=$2
