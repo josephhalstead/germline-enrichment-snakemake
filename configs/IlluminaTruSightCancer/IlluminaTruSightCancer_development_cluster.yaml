@@ -7,7 +7,11 @@ reference:
 reference_index:
   /state/partition1/db/human/gatk/2.8/b37/human_g1k_v37.fasta.fai
 dbsnp_vcf:
-  /data/db/human/gnomad/gnomad.exomes.r2.0.1.sites.vcf.gz
+  /state/partition1/db/human/gatk/2.8/b37/dbsnp_138.b37.vcf
+indels_1k_vcf:
+  /state/partition1/db/human/gatk/2.8/b37/1000G_phase1.indels.b37.vcf
+gold_standard_indels:
+  /state/partition1/db/human/gatk/2.8/b37/Mills_and_1000G_gold_standard.indels.b37.vcf
 dbsnp_vcf_eval:
   /state/partition1/db/human/gatk/2.8/b37/dbsnp_138.b37.excluding_sites_after_129.vcf
 gnomad_exomes:
@@ -17,7 +21,7 @@ gnomad_genomes:
 1000k_high_confidence_snps:
   /state/partition1/db/human/gatk/2.8/b37/1000G_phase1.snps.high_confidence.b37.vcf
 capture_bed_file:
-  /share/data/results/181212_M02641_0155_000000000-C47BK/IlluminaTruSightCancer/gatk_snakemake/configs/IlluminaTruSightCancer/IlluminaTruSightCancer_ROI_b37.bed 
+  /share/data/results/181214_D00501_0264_BHMHMLBCX2/IlluminaTruSightOne/gatk_snakemake/configs/IlluminaTruSightOne/IlluminaTruSightOne_ROI_b37.bed 
 fastq_screen_config:
   /share/apps/fastqscreen-distros/fastq_screen_v0.10.0/fastq_screen.conf
 reference_sequence_dict:
@@ -33,8 +37,16 @@ fastqc_temp_dir:
 samtools_temp_dir:
   /state/partition1/tmpdir
 hotspot_bed_dir:
-  /share/data/results/181212_M02641_0155_000000000-C47BK/IlluminaTruSightCancer/gatk_snakemake/configs/IlluminaTruSightCancer/hotspot_coverage/
+  test
+spliceai:
+  /data/db/human/SpliceAI/exome_spliceai_scores.vcf.gz
+ccr_bed:
+  /data/db/human/CCR/ccrs.all.v2.20180420_37.bed.gz
 
+hotspot_bed_dir:
+  /share/data/results/181212_M02641_0155_000000000-C47BK_new/IlluminaTruSightCancer/germline-enrichment-snakemake/configs/IlluminaTruSightCancer/hotspot_coverage/
+vep_cache_location:
+  /data/db/human/vep/vep_cache
 
 
 # Alternate pipeline execution
