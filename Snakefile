@@ -88,8 +88,8 @@ rule fastp:
 	output:
 		html = "output/qc_reports/fastp/{sample_name}_{sample_number}_{lane}_fastp.html",
 		json = "output/qc_reports/fastp/{sample_name}_{sample_number}_{lane}_fastp.json",
-		fwd = "output/qfiltered_reads/{sample_name}_{sample_number}_{lane}_R1_001.qfilter.fastq.gz",
-		rev = "output/qfiltered_reads/{sample_name}_{sample_number}_{lane}_R2_001.qfilter.fastq.gz"
+		fwd = temp("output/qfiltered_reads/{sample_name}_{sample_number}_{lane}_R1_001.qfilter.fastq.gz"),
+		rev = temp("output/qfiltered_reads/{sample_name}_{sample_number}_{lane}_R2_001.qfilter.fastq.gz")
 	threads:
 		config["fastp_threads"]
 	shell:
@@ -160,7 +160,7 @@ rule bwa_align:
 		fwd = "output/qfiltered_reads/{sample_name}_{sample_number}_{lane}_R1_001.qfilter.fastq.gz",
 		rev = "output/qfiltered_reads/{sample_name}_{sample_number}_{lane}_R2_001.qfilter.fastq.gz"
 	output:
-		"output/alignments/{sample_name}_{sample_number}_{lane}.bam"
+		temp("output/alignments/{sample_name}_{sample_number}_{lane}.bam")
 	threads:
 		config["bwa_threads"]
 	params:
@@ -182,7 +182,7 @@ rule index_original_bam:
 	input:
 		"output/alignments/{sample_name}_{sample_number}_{lane}.bam"
 	output:
-		"output/alignments/{sample_name}_{sample_number}_{lane}.bam.bai"
+		temp("output/alignments/{sample_name}_{sample_number}_{lane}.bam.bai")
 	shell:
 		"samtools index {input}"
 
@@ -192,8 +192,8 @@ rule merge_and_remove_duplicates:
 		bams = expand("output/alignments/{{sample_name}}_{{sample_number}}_{lane}.bam", lane=lanes),
 		bam_indexes = expand("output/alignments/{{sample_name}}_{{sample_number}}_{lane}.bam.bai", lane=lanes),
 	output:
-		bam = "output/merged_bams/{sample_name}_{sample_number}_merged_nodups.bam",
-		index = "output/merged_bams/{sample_name}_{sample_number}_merged_nodups.bai",
+		bam = temp("output/merged_bams/{sample_name}_{sample_number}_merged_nodups.bam"),
+		index = temp("output/merged_bams/{sample_name}_{sample_number}_merged_nodups.bai"),
 		metrics = "output/qc_reports/mark_duplicates/{sample_name}_{sample_number}_MarkDuplicatesMetrics.txt"
 	params:
 		temp = config["picard_temp_dir"],
@@ -271,8 +271,8 @@ if config["perform_bqsr"] == True:
 		params:
 			ref = config["reference"],
 			known_sites_dbsnp = config["dbsnp_vcf"],
-                        known_sites_indels = config["indels_1k_vcf"],
-                        known_sites_gold = config["gold_standard_indels"],
+			known_sites_indels = config["indels_1k_vcf"],
+			known_sites_gold = config["gold_standard_indels"],
 			bed_file = config["capture_bed_file"],
 			padding = config["interval_padding_bqsr"],
 			java_options = config["gatk_bqsr_java_options"]
@@ -517,7 +517,7 @@ rule create_gvcfs:
 		bam_index= "output/final_bam/{sample_name}_{sample_number}_final.bai",
 		bed = "output/config/split_capture_bed/{chr}.bed",
 	output:
-		gvcf_file = "output/gvcfs/{sample_name}_{sample_number}_chr{chr}.g.vcf"
+		gvcf_file = temp("output/gvcfs/{sample_name}_{sample_number}_chr{chr}.g.vcf")
 	params:
 		ref = config["reference"],
 		padding = config['interval_padding_haplotype_caller'],
@@ -556,7 +556,7 @@ rule genotype_gvcfs:
 		db = directory("output/genomicdbs/{seq_id}_chr{chr}"),
 		bed = "output/config/split_capture_bed/{chr}.bed",
 	output:
-		"output/jointvcf_per_chr/{seq_id}_chr{chr}.vcf"
+		temp("output/jointvcf_per_chr/{seq_id}_chr{chr}.vcf")
 	params:
 		ref = config["reference"],
 		java_options = config['gatk_hc_java_options'],
@@ -574,7 +574,7 @@ rule collect_vcfs:
 	input:
 		expand("output/jointvcf_per_chr/{{seq_id}}_chr{chr}.vcf", chr= chromosomes)
 	output:
-		"output/jointvcf/{seq_id}_all_chr.vcf"
+		temp("output/jointvcf/{seq_id}_all_chr.vcf")
 	params:
 		files = lambda wildcards, input: " I=".join(input),
 		java_home = config["java_home"]
@@ -593,7 +593,7 @@ rule select_snps_for_filtering:
 	input:
 		vcf = "output/jointvcf/{seq_id}_all_chr.vcf",
 	output:
-		"output/jointvcf_snps/{seq_id}_all_chr_snps.vcf"
+		temp("output/jointvcf_snps/{seq_id}_all_chr_snps.vcf")
 	params:
 		ref = config["reference"],
 		padding = config["interval_padding_haplotype_caller"],
@@ -613,7 +613,7 @@ rule filter_snps:
 	input:
 		vcf = "output/jointvcf_snps/{seq_id}_all_chr_snps.vcf",
 	output:
-		"output/jointvcf_snps_filtered/{seq_id}_all_chr_snps_filtered.vcf"
+		temp("output/jointvcf_snps_filtered/{seq_id}_all_chr_snps_filtered.vcf")
 	params:
 		ref = config["reference"],
 		padding = config["interval_padding_haplotype_caller"],
@@ -651,7 +651,7 @@ rule select_non_snps_for_filtering:
 	input:
 		vcf = "output/jointvcf/{seq_id}_all_chr.vcf",
 	output:
-		"output/jointvcf_indels/{seq_id}_all_chr_indels.vcf"
+		temp("output/jointvcf_indels/{seq_id}_all_chr_indels.vcf")
 	params:
 		ref = config["reference"],
 		padding = config["interval_padding_haplotype_caller"],
@@ -671,7 +671,7 @@ rule filter_non_snps:
 	input:
 		vcf = "output/jointvcf_indels/{seq_id}_all_chr_indels.vcf",
 	output:
-		"output/jointvcf_indels_filtered/{seq_id}_all_chr_indels_filtered.vcf"
+		temp("output/jointvcf_indels_filtered/{seq_id}_all_chr_indels_filtered.vcf")
 	params:
 		ref = config["reference"],
 		padding = config["interval_padding_haplotype_caller"],
@@ -710,7 +710,7 @@ rule combine_filtered_snps_and_indels:
 		snps = "output/jointvcf_snps_filtered/{seq_id}_all_chr_snps_filtered.vcf",
 		indels = "output/jointvcf_indels_filtered/{seq_id}_all_chr_indels_filtered.vcf"
 	output:
-		"output/jointvcf_all_variants_filtered/{seq_id}_all_variants_filtered.vcf"
+		temp("output/jointvcf_all_variants_filtered/{seq_id}_all_variants_filtered.vcf")
 	params:
 		java_options = config["gatk_variants_java_options"]
 	shell:
@@ -774,7 +774,7 @@ rule decompose_and_normalise:
 	input:
 		"output/jointvcf_all_variants_filtered_genotype_roi/{seq_id}_all_variants_filtered_genotype_roi.vcf"
 	output:
-		"output/jointvcf_all_variants_filtered_genotype_roi_norm/{seq_id}_all_variants_filtered_genotype_roi_norm.vcf"
+		temp("output/jointvcf_all_variants_filtered_genotype_roi_norm/{seq_id}_all_variants_filtered_genotype_roi_norm.vcf")
 	params:
 		ref = config["reference"]
 	shell:
@@ -868,7 +868,7 @@ rule add_meta_to_vcf:
 		vcf = "output/jointvcf_all_variants_filtered_genotype_roi/{seq_id}_all_variants_filtered_genotype_roi.vcf",
 		meta = "output/vcf_meta/merged_meta.txt"
 	output:
-		"output/jointvcf_all_variants_filtered_genotype_roi_meta/{seq_id}_all_variants_filtered_genotype_roi_meta.vcf"
+		temp("output/jointvcf_all_variants_filtered_genotype_roi_meta/{seq_id}_all_variants_filtered_genotype_roi_meta.vcf")
 	shell:
 		"""
 		 grep '^##' {input.vcf} > {output}
@@ -1115,7 +1115,7 @@ rule run_manta_config:
 	input:
 		bam_file = "output/final_bam/{sample_name}_{sample_number}_final.bam"
 	output:
-		"output/manta/{sample_name}_{sample_number}/runWorkflow.py"
+		temp("output/manta/{sample_name}_{sample_number}/runWorkflow.py")
 	params:
 		ref = config["reference"]
 	conda:
@@ -1192,8 +1192,8 @@ rule call_cnvs:
 		bed = "output/config/cnv_bed/" + panel + "_ROI_b37_CNV.bed",
 		bam_indexes = expand("output/final_bam/{sample_name}_{sample_number}_final.bam.bai", zip, sample_name=sample_names, sample_number=sample_numbers)
 	output:
-		dynamic("output/exome_depth/{sample_name}_final_cnv.vcf"),
-		dynamic("output/exome_depth/{sample_name}_final_cnv.txt")
+		dynamic("output/exome_depth/{sample_name}_final_cnv_fixed.vcf.gz"),
+		dynamic("output/exome_depth/{sample_name}_final_cnv_fixed.vcf.gz.tbi")
 	params:
 		ref = config["reference"],
 		seq_id = seq_id,
@@ -1206,7 +1206,7 @@ rule call_cnvs:
 # Collect the dynamically created exome depth files
 rule collect_cnvs:
 	input:
-		dynamic("output/exome_depth/{sample_name}_final_cnv.vcf")
+		dynamic("output/exome_depth/{sample_name}_final_cnv.vcf.gz")
 	output:
 		"output/exome_depth/finished_cnv.txt"
 	shell:
@@ -1292,7 +1292,7 @@ if config["perform_bqsr"] == True:
 			"output/validated_vcf/{seq_id}.validated",
 			"output/exome_depth/finished_cnv.txt",
 			expand("output/manta/{sample_name}_{sample_number}/results/variants/diploidSV.vcf.gz", zip, sample_name=sample_names, sample_number=sample_numbers),
-			"output/jointvcf_all_variants_filtered_genotype_roi_norm_vep/{seq_id}_all_variants_filtered_genotype_roi_norm_vep.vcf",
+			"output/vcf_csv/{seq_id}_vcf.csv",
 			"output/jointvcf_all_variants_filtered_genotype_roi_meta_nomt/{seq_id}_all_variants_filtered_genotype_roi_meta_nomt.vcf",
 			expand("output/qc_reports/bqsr/{sample_name}_{sample_number}_bqsr_covariation.csv", zip, sample_name=sample_names, sample_number=sample_numbers),
 			"output/qc_reports/multiqc/" + seq_id + ".html",
@@ -1312,7 +1312,7 @@ else:
 				"output/validated_vcf/{seq_id}.validated",
 				"output/exome_depth/finished_cnv.txt",
 				expand("output/manta/{sample_name}_{sample_number}/results/variants/diploidSV.vcf.gz", zip, sample_name=sample_names, sample_number=sample_numbers),
-				"output/jointvcf_all_variants_filtered_genotype_roi_norm_vep/{seq_id}_all_variants_filtered_genotype_roi_norm_vep.vcf",
+				"output/vcf_csv/{seq_id}_vcf.csv",
 				"output/jointvcf_all_variants_filtered_genotype_roi_meta_nomt/{seq_id}_all_variants_filtered_genotype_roi_meta_nomt.vcf",
 				"output/qc_reports/multiqc/" + seq_id + ".html",
 				"output/qc_reports/combined_qc/" + seq_id + "_combined_QC.txt",
@@ -1331,7 +1331,7 @@ else:
 				"output/validated_vcf/{seq_id}.validated",
 				"output/exome_depth/finished_cnv.txt",
 				expand("output/manta/{sample_name}_{sample_number}/results/variants/diploidSV.vcf.gz", zip, sample_name=sample_names, sample_number=sample_numbers),
-				"output/jointvcf_all_variants_filtered_genotype_roi_norm_vep/{seq_id}_all_variants_filtered_genotype_roi_norm_vep.vcf",
+				"output/vcf_csv/{seq_id}_vcf.csv",
 				"output/jointvcf_all_variants_filtered_genotype_roi_meta_nomt/{seq_id}_all_variants_filtered_genotype_roi_meta_nomt.vcf",
 				"output/qc_reports/multiqc/" + seq_id + ".html",
 				"output/qc_reports/combined_qc/" + seq_id + "_combined_QC.txt"

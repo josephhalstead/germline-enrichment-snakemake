@@ -41,12 +41,14 @@ if [[ -e $BAM_LIST ]] && [[ $(wc -l $BAM_LIST | awk '{print $1}') -gt 4 ]]; then
         bgzip "$PREFIX"/"$sampleId"_fixed.vcf
         tabix -p vcf "$PREFIX"/"$sampleId"_fixed.vcf.gz
 
+        rm vcf
+
     done
 
 else
 
-	touch $PREFIX/no_cnvs_final_cnv.vcf;
-	touch $PREFIX/no_cnvs_final_cnv.txt;
+    touch $PREFIX/no_cnvs_final_cnv.vcf.gz;
+    touch $PREFIX/no_cnvs_final_cnv.vcf.gz.tbi;
 
 
 fi
