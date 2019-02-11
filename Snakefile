@@ -1206,7 +1206,7 @@ rule call_cnvs:
 # Collect the dynamically created exome depth files
 rule collect_cnvs:
 	input:
-		dynamic("output/exome_depth/{sample_name}_final_cnv.vcf.gz")
+		dynamic("output/exome_depth/{sample_name}_final_cnv_fixed.vcf.gz")
 	output:
 		"output/exome_depth/finished_cnv.txt"
 	shell:
