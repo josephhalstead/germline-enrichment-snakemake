@@ -21,7 +21,7 @@ gnomad_genomes:
 1000k_high_confidence_snps:
   /state/partition1/db/human/gatk/2.8/b37/1000G_phase1.snps.high_confidence.b37.vcf
 capture_bed_file:
-  /share/data/results/181214_D00501_0264_BHMHMLBCX2/IlluminaTruSightOne/gatk_snakemake/configs/IlluminaTruSightOne/IlluminaTruSightOne_ROI_b37.bed 
+  /share/data/results/190212_M00766_0189_000000000-CCC95/IlluminaTruSightCancer/germline-enrichment-snakemake/configs/IlluminaTruSightCancer/IlluminaTruSightCancer_ROI_b37.bed 
 fastq_screen_config:
   /share/apps/fastqscreen-distros/fastq_screen_v0.10.0/fastq_screen.conf
 reference_sequence_dict:
@@ -36,18 +36,27 @@ fastqc_temp_dir:
   /state/partition1/tmpdir
 samtools_temp_dir:
   /state/partition1/tmpdir
-hotspot_bed_dir:
-  test
 spliceai:
   /data/db/human/SpliceAI/exome_spliceai_scores.vcf.gz
 ccr_bed:
   /data/db/human/CCR/ccrs.all.v2.20180420_37.bed.gz
 
 hotspot_bed_dir:
-  /share/data/results/181212_M02641_0155_000000000-C47BK_new/IlluminaTruSightCancer/germline-enrichment-snakemake/configs/IlluminaTruSightCancer/hotspot_coverage/
+  /share/data/results/190212_M00766_0189_000000000-CCC95/IlluminaTruSightCancer/germline-enrichment-snakemake/configs/IlluminaTruSightCancer/hotspot_coverage
 vep_cache_location:
   /data/db/human/vep/vep_cache
-
+coverage_calculator:
+  /data/diagnostics/apps/CoverageCalculatorPy-1.0.0/CoverageCalculatorPy.py
+germline_hotspots:
+  /share/data/results/190212_M00766_0189_000000000-CCC95/IlluminaTruSightCancer/germline-enrichment-snakemake/configs/GermlineEnrichment_Hotspots.bed
+refseq:
+  /data/db/human/refseq/ref_GRCh37.p13_top_level_canonical_b37_sorted.gff3.gz
+filter_config:
+  /share/data/results/190212_M00766_0189_000000000-CCC95/IlluminaTruSightCancer/germline-enrichment-snakemake/configs/filter_config_cluster.yaml
+local_panel_app_dump:
+  /home/transfer/panelappdump.csv
+germline_variant_filter:
+  /home/transfer/app_development/germline_variant_filter/germline_variant_filter.py
 
 # Alternate pipeline execution
 
