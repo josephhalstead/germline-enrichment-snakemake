@@ -8,8 +8,9 @@ BED=$3
 SEQID=$4
 PREFIX=$5
 DICT=$6
+LOW_BAM_LIST=$7
 
-if [[ -e $BAM_LIST ]] && [[ $(wc -l $BAM_LIST | awk '{print $1}') -gt 4 ]]; then
+if [[ -e $BAM_LIST ]] && [[ $(wc -l $BAM_LIST | awk '{print $1}') -gt 2 ]]; then
 
 
 	 #call CNVs using read depth
@@ -41,14 +42,46 @@ if [[ -e $BAM_LIST ]] && [[ $(wc -l $BAM_LIST | awk '{print $1}') -gt 4 ]]; then
         bgzip "$PREFIX"/"$sampleId"_fixed.vcf
         tabix -p vcf "$PREFIX"/"$sampleId"_fixed.vcf.gz
 
-        rm vcf
+        rm $vcf
 
     done
 
+    rm $PREFIX/*_cnv.txt
+
+    # Make empty files for low coverage - snakemake needs this
+    for i in $(cat $LOW_BAM_LIST); do
+
+        
+        sampleId=$(basename ${i%.*})
+
+
+        echo 'NO CNVS' > "$PREFIX"/"$sampleId"_cnv_fixed.vcf.gz
+        echo 'NO CNVS' > "$PREFIX"/"$sampleId"_cnv_fixed.vcf.gz.tbi
+
+    done
+
+
 else
 
-    touch $PREFIX/no_cnvs_final_cnv.vcf.gz;
-    touch $PREFIX/no_cnvs_final_cnv.vcf.gz.tbi;
+    # create emptry files for all samples
+    for i in $(cat $LOW_BAM_LIST); do
+
+        sampleId=$(basename ${i%.*})
+
+        echo 'NO CNVS' > "$PREFIX"/"$sampleId"_cnv_fixed.vcf.gz
+        echo 'NO CNVS' > "$PREFIX"/"$sampleId"_cnv_fixed.vcf.gz.tbi
+
+    done
+
+
+     for i in $(cat $BAM_LIST); do
+
+        sampleId=$(basename ${i%.*})
+
+        echo 'NO CNVS' > "$PREFIX"/"$sampleId"_cnv_fixed.vcf.gz
+        echo 'NO CNVS' > "$PREFIX"/"$sampleId"_cnv_fixed.vcf.gz.tbi
+
+    done   
 
 
 fi

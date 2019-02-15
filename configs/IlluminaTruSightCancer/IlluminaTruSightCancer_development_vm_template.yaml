@@ -34,7 +34,22 @@ samtools_temp_dir:
   /tmp/
 hotspot_bed_dir:
   /media/sf_Documents/gatk_snakemake/configs/IlluminaTruSightCancer/hotspot_coverage/
-
+spliceai:
+  /media/sf_Documents/genomics_resources/annotations/exome_spliceai_scores.vcf.gz
+ccr_bed:
+  /media/sf_Documents/genomics_resources/beds/ccrs.all.v2.20180420_37.bed.gz
+coverage_calculator:
+  /media/sf_Documents/CoverageCalculatorPy/CoverageCalculatorPy.py
+germline_hotspots:
+  /media/sf_Documents/genomics_resources/beds/GermlineEnrichment_Hotspots.bed
+refseq:
+  /media/sf_Documents/genomics_resources/refsref_GRCh37.p13_top_level_canonical_b37_sorted.gff3.gz
+filter_config:
+  /media/sf_Documents/gatk_snakemake/configs/filter_config.yaml
+local_panel_app_dump:
+  /media/sf_Documents/germline_variant_filter/panelapp.csv
+germline_variant_filter:
+  /media/sf_Documents/germline_variant_filter/germline_variant_filter.py
 # Alternate pipeline execution
 
 perform_bqsr:

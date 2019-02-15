@@ -21,7 +21,7 @@ from pathlib import Path
 
 # Which YAMl config to use
 
-config_location = "test.yaml"
+config_location = "testvm.yaml"
 configfile: config_location
 
 # How many lanes do we have?
@@ -37,9 +37,8 @@ panel = config["panel"]
 seq_id = config["seqId"]
 
 #-----------------------------------------------------------------------------------------------------------------#
-# Utility Functions For Getting Files
+# Utility Input Functions For Getting Files
 #-----------------------------------------------------------------------------------------------------------------#
-
 
 def get_fastqc(wildcards):
 	"""	
@@ -54,6 +53,24 @@ def get_fastqc(wildcards):
 
 			file_list.append("output/qc_reports/fastqc/" + sample_name + "_" + sample_number + "_" + lane + "_R1_001.qfilter_fastqc.html" )
 			file_list.append("output/qc_reports/fastqc/" + sample_name + "_" + sample_number + "_" + lane + "_R2_001.qfilter_fastqc.html" )
+
+	return file_list
+
+def get_all_custom_coverage(wildcards):
+	"""
+	Return a list of strings with all the custom coverage files in.
+
+	"""
+
+	file_list = []
+	beds = glob_wildcards(config["hotspot_bed_dir"] + "{bedfile}.bed")
+
+	for sample_name, sample_number in zip(sample_names,sample_numbers ):
+
+		for bedfile in beds[0]:
+
+			my_input = "output/depth/hotspot_coverage/" + sample_name + "_" + sample_number + "_" + bedfile + ".coverage"
+			file_list.append(my_input)
 
 	return file_list
 
@@ -78,7 +95,6 @@ rule create_ped_file:
 		"output/config/{seq_id}.ped"
 	shell:
 		"python scripts/make_ped.py --config {input} > {output}"
-
 
 # Run the fastp program to generate a read quality report and trim read adapters and by quality
 rule fastp:
@@ -109,10 +125,10 @@ rule fastq_screen:
 		rev = "{sample_name}/{sample_name}_{sample_number}_{lane}_R2_001.fastq.gz"
 	output:
 		"output/qc_reports/fastq_screen/{sample_name}_{sample_number}_{lane}_R1_001_screen.html",
-		"output/qc_reports/fastq_screen/{sample_name}_{sample_number}_{lane}_R1_001_screen.png",
+		temp("output/qc_reports/fastq_screen/{sample_name}_{sample_number}_{lane}_R1_001_screen.png"),
 		"output/qc_reports/fastq_screen/{sample_name}_{sample_number}_{lane}_R1_001_screen.txt",
 		"output/qc_reports/fastq_screen/{sample_name}_{sample_number}_{lane}_R2_001_screen.html",
-		"output/qc_reports/fastq_screen/{sample_name}_{sample_number}_{lane}_R2_001_screen.png",
+		temp("output/qc_reports/fastq_screen/{sample_name}_{sample_number}_{lane}_R2_001_screen.png"),
 		"output/qc_reports/fastq_screen/{sample_name}_{sample_number}_{lane}_R2_001_screen.txt"	
 	threads:
 		config["fastq_screen_threads"]
@@ -282,9 +298,9 @@ if config["perform_bqsr"] == True:
 			"-I {input.bam} "
 			"-O {output} "
 			"-R {params.ref} "
-                        "--known-sites {params.known_sites_dbsnp} "
-                        "--known-sites {params.known_sites_indels} "
-                        "--known-sites {params.known_sites_gold} "
+			"--known-sites {params.known_sites_dbsnp} "
+			"--known-sites {params.known_sites_indels} "
+			"--known-sites {params.known_sites_gold} "
 			"-L {params.bed_file} "
 			"--interval-padding {params.padding}"
 
@@ -394,7 +410,8 @@ rule extract_high_confidence_snps:
 	input:
 		config["1000k_high_confidence_snps"]
 	output:
-		"output/config/snps/1kg_highconfidence_autosomal_ontarget_monoallelic_snps.vcf"
+		vcf = temp("output/config/snps/1kg_highconfidence_autosomal_ontarget_monoallelic_snps.vcf"),
+		index = temp("output/config/snps/1kg_highconfidence_autosomal_ontarget_monoallelic_snps.vcf.idx")
 	params:
 		ref = config["reference"],
 		bed = config["capture_bed_file"],
@@ -405,7 +422,7 @@ rule extract_high_confidence_snps:
 		"-R {params.ref} "
 		"-V {input} "
 		"-L {params.bed} "
-		"-O {output} "
+		"-O {output.vcf} "
 		"-select-type SNP "
 		"--restrict-alleles-to BIALLELIC "
 		"--exclude-intervals X "
@@ -442,7 +459,7 @@ rule generate_per_base_coverage:
 		bam = "output/final_bam/{sample_name}_{sample_number}_final.bam",
 		bam_index = "output/final_bam/{sample_name}_{sample_number}_final.bai"
 	output:
-		depth = "output/depth/depth_of_coverage/{sample_name}_{sample_number}_DepthOfCoverage",
+		depth = temp("output/depth/depth_of_coverage/{sample_name}_{sample_number}_DepthOfCoverage"),
 		summary = "output/depth/depth_of_coverage/{sample_name}_{sample_number}_DepthOfCoverage.sample_summary"
 	params:
 		ref = config["reference"],
@@ -479,22 +496,41 @@ rule compress_and_index_coverage:
 # Find Coverage Gaps
 #-----------------------------------------------------------------------------------------------------------------#
 
-
-# Use chris's new solution
-
-
-		
+rule calculate_coverage_metrics:
+	input:
+		depth = "output/depth/depth_of_coverage/{sample_name}_{sample_number}_DepthOfCoverage.gz",
+		index = "output/depth/depth_of_coverage/{sample_name}_{sample_number}_DepthOfCoverage.gz.tbi"	
+	output:
+		"output/depth/metrics/" + seq_id + "_{sample_name}_{sample_number}_Gaps.bed"
+	params:
+		roi_bed = config["capture_bed_file"],
+		panel = panel,
+		hotspots = config["germline_hotspots"],
+		min_coverage = config["minimum_coverage"],
+		seq_id = seq_id,
+		refseq = config["refseq"]
+	shell:
+		"bash scripts/get_coverage.sh "
+		"{params.roi_bed} "
+		"{params.panel} "
+		"{params.hotspots} "
+		"{input.depth} "
+		"{params.seq_id} "
+		"{wildcards.sample_name}_{wildcards.sample_number} "
+		"{params.min_coverage} "
+		"{params.refseq} "
+		"output/depth/metrics/ "
+	
 #-----------------------------------------------------------------------------------------------------------------#
 # SNP and Small Indel Calling with GATK Haplotype Caller
 #-----------------------------------------------------------------------------------------------------------------#
-
 
 # Sort ROI bed for splitting by bedextract
 rule sort_capture_bed:
 	input:
 		config["capture_bed_file"]
 	output:
-		"output/config/sorted_beds/{{panel}}_sorted.bed".format(panel=panel)
+		temp("output/config/sorted_beds/{{panel}}_sorted.bed".format(panel=panel))
 	shell:
 		"sort-bed {input} > {output}"
 
@@ -503,12 +539,11 @@ rule split_bed_by_chromosome:
 	input:
 		"output/config/sorted_beds/{panel}_sorted.bed".format(panel=panel)
 	output:
-		expand("output/config/split_capture_bed/{chr}.bed", chr=chromosomes)
+		temp(expand("output/config/split_capture_bed/{chr}.bed", chr=chromosomes))
 	params:
 		chromosomes = chromosomes
 	shell:
 		"for chr in {params.chromosomes}; do bedextract $chr {input} > output/config/split_capture_bed/$chr.bed; done"
-
 
 # Create GVCF using Haplotype Caller for each sample chromosome combination
 rule create_gvcfs:
@@ -517,7 +552,8 @@ rule create_gvcfs:
 		bam_index= "output/final_bam/{sample_name}_{sample_number}_final.bai",
 		bed = "output/config/split_capture_bed/{chr}.bed",
 	output:
-		gvcf_file = temp("output/gvcfs/{sample_name}_{sample_number}_chr{chr}.g.vcf")
+		gvcf_file = temp("output/gvcfs/{sample_name}_{sample_number}_chr{chr}.g.vcf"),
+		index = temp("output/gvcfs/{sample_name}_{sample_number}_chr{chr}.g.vcf.idx")
 	params:
 		ref = config["reference"],
 		padding = config['interval_padding_haplotype_caller'],
@@ -526,7 +562,7 @@ rule create_gvcfs:
 		"gatk --java-options '{params.java_options}' HaplotypeCaller -R {params.ref} "
 		"-I {input.bam_file} "
 		"--emit-ref-confidence GVCF "
-		"-O {output} "
+		"-O {output.gvcf_file} "
 		"-L {input.bed} "
 		"--interval-padding {params.padding}"
 
@@ -537,7 +573,7 @@ rule create_genomics_db:
 		gvcfs = expand("output/gvcfs/{sample_name}_{sample_number}_chr{{chr}}.g.vcf" , zip, sample_name=sample_names, sample_number=sample_numbers),
 		bed = "output/config/split_capture_bed/{chr}.bed"
 	output:
-		directory("output/genomicdbs/{seq_id}_chr{chr}")
+		temp(directory("output/genomicdbs/{seq_id}_chr{chr}"))
 	params:
 		files = lambda wildcards, input: " -V ".join(input.gvcfs),
 		java_options = config["gatk_genomics_db_java_options"],
@@ -761,7 +797,7 @@ rule filter_by_roi:
 		vcf = "output/jointvcf_all_variants_filtered_genotype/{seq_id}_all_variants_filtered_genotype.vcf.gz",
 		index = "output/jointvcf_all_variants_filtered_genotype/{seq_id}_all_variants_filtered_genotype.vcf.gz.tbi"
 	output:
-		"output/jointvcf_all_variants_filtered_genotype_roi/{seq_id}_all_variants_filtered_genotype_roi.vcf"
+		temp("output/jointvcf_all_variants_filtered_genotype_roi/{seq_id}_all_variants_filtered_genotype_roi.vcf")
 	params:
 		bed = config["capture_bed_file"],
 		ref = config["reference"]
@@ -850,7 +886,42 @@ rule convert_to_csv:
 		"gatk VariantsToTable -V {input.vcf} "
 		"-O {output} -F CHROM -F POS -F REF -F ALT -F ID -F QUAL -F FILTER -F CSQ -F AC "
 		"-GF GT -GF GQ -GF DP"
-		
+
+# Get the CSQ string which describes the VEP fields	
+rule get_csq_string:
+	input:
+		"output/jointvcf_all_variants_filtered_genotype_roi_norm_vep/{seq_id}_all_variants_filtered_genotype_roi_norm_vep.vcf"
+	output:
+		"output/config/csq/{seq_id}_csq.txt"
+	shell:
+		"grep \"^##INFO=<ID=CSQ\" {input} | awk 'BEGIN {{ FS = \":\" }} ; {{ print $2 }}' | tr -d '>\" ' > {output} "
+
+# Run the germline variant filter program
+rule create_variant_reports:
+	input:
+		csv = "output/vcf_csv/{seq_id}_vcf.csv",
+		ped = "output/config/{seq_id}.ped",
+		csq = "output/config/csq/{seq_id}_csq.txt"
+	output:
+		"output/variant_reports/{seq_id}_finished.txt"
+	params:
+		germline_variant_filter = config["germline_variant_filter"],
+		filter_config = config["filter_config"],
+		local_panel_app_dump = config["local_panel_app_dump"],
+	shell:
+		"python {params.germline_variant_filter} "
+		"--config {params.filter_config} "
+		"--ped {input.ped} "
+		"--input {input.csv} "
+		"--panelapp "
+		"--local-panel-app-dump {params.local_panel_app_dump} "
+		"--spliceai "
+		"--smart-synonymous "
+		"--gnomad-constraint-scores "
+		"--worksheet {wildcards.seq_id} "
+		"--results-dir output/variant_reports/ "
+		"--csq $(cat {input.csq}) "
+		"--add-ccrs && touch {output}"
 
 # Merge the metadata from all samples into a single file
 rule collect_meta_data:
@@ -910,8 +981,8 @@ rule variant_evaluation:
 	input:
 		"output/jointvcf_all_variants_filtered_genotype/{seq_id}_all_variants_filtered_genotype.vcf.gz"
 	output:
-		"output/qc_reports/variant_calling_metrics/{seq_id}.variant_calling_detail_metrics",
-		"output/qc_reports/variant_calling_metrics/{seq_id}.variant_calling_summary_metrics"
+		"output/qc_reports/variant_calling_metrics/{seq_id}_CollectVariantCallingMetrics.variant_calling_detail_metrics",
+		"output/qc_reports/variant_calling_metrics/{seq_id}_CollectVariantCallingMetrics.variant_calling_summary_metrics"
 	params:
 		dbsnp_vcf = config["dbsnp_vcf_eval"],
 		java_home = config["java_home"]
@@ -998,6 +1069,7 @@ rule gather_qc_metrics:
 	output:
 		summary = "{sample_name}/{sample_name}_{sample_number}_QC.txt",
 		high_coverage = "output/qc_reports/high_coverage_bams/{sample_name}_{sample_number}_high_coverage.txt",
+		low_coverage = "output/qc_reports/low_coverage_bams/{sample_name}_{sample_number}_low_coverage.txt",
 		meta = "output/vcf_meta/{sample_name}_{sample_number}_meta.txt"
 	params:
 		seq_id = seq_id,
@@ -1051,6 +1123,14 @@ rule gather_qc_metrics:
 
 		fi
 
+		if [ $(echo "$meanOnTargetCoverage" | awk '{{if ($1 < 20) print "true"; else print "false"}}') = true ]; then
+			echo {input.bam} > {output.low_coverage} 
+		else
+
+			touch {output.low_coverage} 
+
+		fi		
+
 		RemoteVcfFilePath=$(dirname $PWD)/output/jointvcf_all_variants_filtered_genotype_vep_gnomad_roi_meta/{params.seq_id}_jointvcf_all_variants_filtered_genotype_vep_gnomad_roi_meta.vcf
 
 		RemoteBamFilePath=$(dirname $PWD)/{input.bam}
@@ -1090,8 +1170,8 @@ rule multiqc:
 		expand("output/depth/depth_of_coverage/{sample_name}_{sample_number}_DepthOfCoverage.sample_summary",zip, sample_name=sample_names, sample_number=sample_numbers),
 		expand("output/qc_reports/alignment_metrics/{sample_name}_{sample_number}_AlignmentSummaryMetrics.txt",zip, sample_name=sample_names, sample_number=sample_numbers),
 		expand("output/qc_reports/verify_bam_id/{sample_name}_{sample_number}_verify_bam_id.selfSM",zip, sample_name=sample_names, sample_number=sample_numbers),
-		expand("output/qc_reports/variant_calling_metrics/{seq_id}.variant_calling_detail_metrics", seq_id = seq_id),
-		expand("output/qc_reports/variant_calling_metrics/{seq_id}.variant_calling_summary_metrics", seq_id = seq_id),
+		expand("output/qc_reports/variant_calling_metrics/{seq_id}_CollectVariantCallingMetrics.variant_calling_detail_metrics", seq_id = seq_id),
+		expand("output/qc_reports/variant_calling_metrics/{seq_id}_CollectVariantCallingMetrics.variant_calling_summary_metrics", seq_id = seq_id),
 		expand("output/qc_reports/relatedness/{seq_id}.relatedness2",  seq_id = seq_id),
 		fastqc = get_fastqc
 	output:
@@ -1152,12 +1232,21 @@ rule high_coverage_bam_list:
 	shell:
 		"cat {input} > {output}"
 
+# Collect all the low coverage bams and put them in a single file.
+rule low_coverage_bam_list:
+	input:
+		expand("output/qc_reports/low_coverage_bams/{sample_name}_{sample_number}_low_coverage.txt", zip, sample_name=sample_names, sample_number=sample_numbers)
+	output:
+		"output/qc_reports/final_low_coverage_bams/low_coverage_bams.txt"
+	shell:
+		"cat {input} > {output}"
+
 # Create the bed file for CNV analysis
 rule make_cnv_bed:
 	input:
 		config["capture_bed_file"]
 	output:
-		"output/config/cnv_bed/" + panel + "_ROI_b37_CNV.bed"
+		temp("output/config/cnv_bed/" + panel + "_ROI_b37_CNV.bed")
 	params:
 		genomic_superdups_bed = config["genomic_superdups_bed"],
 		ref_index = config["reference_index"],
@@ -1180,20 +1269,23 @@ rule change_bam_indexes:
 	input:
 		bam_index = "output/final_bam/{sample_name}_{sample_number}_final.bai"
 	output:
-		bam_index = "output/final_bam/{sample_name}_{sample_number}_final.bam.bai"
+		bam_index = temp("output/final_bam/{sample_name}_{sample_number}_final.bam.bai")
 	shell:
 		"cp {input.bam_index} {output.bam_index}"
 
 
-# Run the R ExomeDepth program - use dynamic as we don't know in advance how many files we will get
+# Run the R ExomeDepth program - create empty files for samples with low depth
 rule call_cnvs:
 	input:
-		bam_list = "output/qc_reports/final_high_coverage_bams/high_coverage_bams.txt",
+		high_bam_list = "output/qc_reports/final_high_coverage_bams/high_coverage_bams.txt",
+		low_bam_list = "output/qc_reports/final_low_coverage_bams/low_coverage_bams.txt",
 		bed = "output/config/cnv_bed/" + panel + "_ROI_b37_CNV.bed",
 		bam_indexes = expand("output/final_bam/{sample_name}_{sample_number}_final.bam.bai", zip, sample_name=sample_names, sample_number=sample_numbers)
 	output:
-		dynamic("output/exome_depth/{sample_name}_final_cnv_fixed.vcf.gz"),
-		dynamic("output/exome_depth/{sample_name}_final_cnv_fixed.vcf.gz.tbi")
+		expand("output/exome_depth/{sample_name}_{sample_number}_final_cnv_fixed.vcf.gz", zip, sample_name=sample_names, sample_number=sample_numbers),
+		expand("output/exome_depth/{sample_name}_{sample_number}_final_cnv_fixed.vcf.gz.tbi", zip, sample_name=sample_names, sample_number=sample_numbers),
+		"output/exome_depth/ExomeDepth.log",
+		"output/exome_depth/" + seq_id + "_ExomeDepth_Metrics.txt",
 	params:
 		ref = config["reference"],
 		seq_id = seq_id,
@@ -1201,17 +1293,7 @@ rule call_cnvs:
 		sequence_dict = config["reference_sequence_dict"],
 		java_home = config["java_home"]
 	shell:
-		"export JAVA_HOME={params.java_home}; bash scripts/call_cnvs.sh {input.bam_list} {params.ref} {input.bed} {params.seq_id} {params.prefix} {params.sequence_dict}"
-
-# Collect the dynamically created exome depth files
-rule collect_cnvs:
-	input:
-		dynamic("output/exome_depth/{sample_name}_final_cnv_fixed.vcf.gz")
-	output:
-		"output/exome_depth/finished_cnv.txt"
-	shell:
-		"touch {output}"
-
+		"export JAVA_HOME={params.java_home}; bash scripts/call_cnvs.sh {input.high_bam_list} {params.ref} {input.bed} {params.seq_id} {params.prefix} {params.sequence_dict} {input.low_bam_list}"
 
 #-----------------------------------------------------------------------------------------------------------------#
 # Panel Specific Rules
@@ -1233,20 +1315,19 @@ if panel == "IlluminaTruSightCancer":
 		input:
 			bed = "output/config/hotspot_bed/IlluminaTruSightCancer_CustomROI_b37.bed",
 			manta = expand("output/manta/{sample_name}_{sample_number}/results/variants/diploidSV.vcf.gz", zip, sample_name=sample_names, sample_number=sample_numbers),
-			exome_depth = "output/exome_depth/finished_cnv.txt",
-			high_coverage_bams = "output/qc_reports/final_high_coverage_bams/high_coverage_bams.txt"
+			exome_depth = expand("output/exome_depth/{sample_name}_{sample_number}_final_cnv_fixed.vcf.gz.tbi", zip, sample_name=sample_names, sample_number=sample_numbers),
+			high_coverage_bams = "output/qc_reports/final_high_coverage_bams/high_coverage_bams.txt",
+			exome_depth_metrics = "output/exome_depth/" + seq_id + "_ExomeDepth_Metrics.txt",
 		output:
 			"output/combined_sv_report/" + seq_id + "_cnvReport.csv"
 		params:
-			seq_id = seq_id,
-			exome_depth_metrics = "output/exome_depth/" + seq_id + "_ExomeDepth_Metrics.txt",
 			depth_folder = "output/depth/depth_of_coverage/",
 			exome_depth_folder = "output/exome_depth/",
 			manta_folder = "output/manta/"			
 		shell:
 			"Rscript --vanilla scripts/generateCnvReport.R "
 			"{input.bed} "
-			"{params.exome_depth_metrics} "
+			"{input.exome_depth_metrics} "
 			"{input.high_coverage_bams} "
 			"{params.depth_folder} "
 			"{params.exome_depth_folder} "
@@ -1258,41 +1339,37 @@ if panel == "IlluminaTruSightCancer":
 		input:
 			depth = "output/depth/depth_of_coverage/{sample_name}_{sample_number}_DepthOfCoverage.gz",
 			index = "output/depth/depth_of_coverage/{sample_name}_{sample_number}_DepthOfCoverage.gz.tbi",
-			bed = "output/config/hotspot_bed/IlluminaTruSightCancer_CustomROI_b37.bed"	
+			bed = config["hotspot_bed_dir"] + "{bedfile}.bed",
 		output:
-			pass_bed = "output/tsc_custom_coverage/{sample_name}_{sample_number}_customPASS.bed",
-			gap_bed = "output/tsc_custom_coverage/{sample_name}_{sample_number}_customGaps.bed",
-			clin_cov = "output/tsc_custom_coverage/{sample_name}_{sample_number}_customClinicalCoverageGeneCoverage.txt",
-			clin_cov_metrics = "output/tsc_custom_coverage/{sample_name}_{sample_number}_customClinicalCoverageTargetMetrics.txt",
-			target_cov = "output/tsc_custom_coverage/{sample_name}_{sample_number}_customClinicalCoverageTargetCoverage.txt",
+			"output/depth/hotspot_coverage/{sample_name}_{sample_number}_{bedfile}.coverage",
+			"output/depth/hotspot_coverage/{sample_name}_{sample_number}_{bedfile}.gaps",
+			"output/depth/hotspot_coverage/{sample_name}_{sample_number}_{bedfile}.missing",
+			"output/depth/hotspot_coverage/{sample_name}_{sample_number}_{bedfile}.totalCoverage"
 		params:
-			min_coverage = config["minimum_coverage"]
+			coverage_calculator = config["coverage_calculator"],
+			min_depth = config["minimum_coverage"]
 		shell:
-			"bash scripts/getCustomCoverage.sh "
-			"{input.bed} "
-			"{input.depth} "
-			"{params.min_coverage} "
-			"{output.pass_bed} "
-			"{output.gap_bed} "
-			"{output.clin_cov_metrics} "
-			"{output.clin_cov} "
-			"{output.target_cov}"
-
+			"python  {params.coverage_calculator} "
+			"-B {input.bed} "
+			"-D {input.depth} "
+			"--depth {params.min_depth} "
+			"--padding 0 "
+			"--outdir output/depth/hotspot_coverage/ "
+			"--outname {wildcards.sample_name}_{wildcards.sample_number}_{wildcards.bedfile} "
 
 #-----------------------------------------------------------------------------------------------------------------#
 # Final Rules
 #-----------------------------------------------------------------------------------------------------------------#
 
-# Rules to create outputs
+# Rules to create outputs. We have a seperate final rule for each assay.
 
 if config["perform_bqsr"] == True:
 
 	rule final:
 		input:
 			"output/validated_vcf/{seq_id}.validated",
-			"output/exome_depth/finished_cnv.txt",
 			expand("output/manta/{sample_name}_{sample_number}/results/variants/diploidSV.vcf.gz", zip, sample_name=sample_names, sample_number=sample_numbers),
-			"output/vcf_csv/{seq_id}_vcf.csv",
+			"output/variant_reports/{seq_id}_finished.txt",
 			"output/jointvcf_all_variants_filtered_genotype_roi_meta_nomt/{seq_id}_all_variants_filtered_genotype_roi_meta_nomt.vcf",
 			expand("output/qc_reports/bqsr/{sample_name}_{sample_number}_bqsr_covariation.csv", zip, sample_name=sample_names, sample_number=sample_numbers),
 			"output/qc_reports/multiqc/" + seq_id + ".html",
@@ -1310,14 +1387,14 @@ else:
 		rule final:
 			input:
 				"output/validated_vcf/{seq_id}.validated",
-				"output/exome_depth/finished_cnv.txt",
 				expand("output/manta/{sample_name}_{sample_number}/results/variants/diploidSV.vcf.gz", zip, sample_name=sample_names, sample_number=sample_numbers),
+				get_all_custom_coverage,
 				"output/vcf_csv/{seq_id}_vcf.csv",
+				"output/variant_reports/{seq_id}_finished.txt",
+				"output/combined_sv_report/" + seq_id + "_cnvReport.csv",
 				"output/jointvcf_all_variants_filtered_genotype_roi_meta_nomt/{seq_id}_all_variants_filtered_genotype_roi_meta_nomt.vcf",
 				"output/qc_reports/multiqc/" + seq_id + ".html",
 				"output/qc_reports/combined_qc/" + seq_id + "_combined_QC.txt",
-				"output/combined_sv_report/" + seq_id + "_cnvReport.csv",
-				expand("output/tsc_custom_coverage/{sample_name}_{sample_number}_customClinicalCoverageTargetCoverage.txt", zip, sample_name=sample_names, sample_number=sample_numbers)
 			output:
 				"output/pipeline_finished/{seq_id}.finished"
 			shell:
@@ -1329,9 +1406,9 @@ else:
 		rule final:
 			input:
 				"output/validated_vcf/{seq_id}.validated",
-				"output/exome_depth/finished_cnv.txt",
 				expand("output/manta/{sample_name}_{sample_number}/results/variants/diploidSV.vcf.gz", zip, sample_name=sample_names, sample_number=sample_numbers),
 				"output/vcf_csv/{seq_id}_vcf.csv",
+				"output/variant_reports/{seq_id}_finished.txt",
 				"output/jointvcf_all_variants_filtered_genotype_roi_meta_nomt/{seq_id}_all_variants_filtered_genotype_roi_meta_nomt.vcf",
 				"output/qc_reports/multiqc/" + seq_id + ".html",
 				"output/qc_reports/combined_qc/" + seq_id + "_combined_QC.txt"

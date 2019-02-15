@@ -17,9 +17,9 @@ gnomad_genomes:
 1000k_high_confidence_snps:
   /Users/josephhalstead/Documents/genomics_resources/snps/1000G_phase1.snps.high_confidence.b37.vcf
 capture_bed_file:
-  /Users/josephhalstead/Documents/pipelines/gatk_snakemake/configs/IlluminaTruSightCancer/IlluminaTruSightCancer_ROI_b37.bed
+  /Users/josephhalstead/Documents/gatk_snakemake/configs/IlluminaTruSightCancer/IlluminaTruSightCancer_ROI_b37.bed
 fastq_screen_config:
-  /Users/josephhalstead/Documents/pipelines/gatk_snakemake/configs/IlluminaTruSightCancer/fastq_screen.txt
+  /Users/josephhalstead/Documents/gatk_snakemake/configs/IlluminaTruSightCancer/fastq_screen.txt
 reference_sequence_dict:
   /Users/josephhalstead/Documents/genomics_resources/refs/human_g1k_v37.dict
 vep_cache_location:
@@ -34,6 +34,11 @@ samtools_temp_dir:
   /tmp/
 hotspot_bed_dir:
   /Users/josephhalstead/Documents/gatk_snakemake/configs/IlluminaTruSightCancer/hotspot_coverage/
+spliceai:
+  /Users/josephhalstead/Documents/genomics_resources/annotations/exome_spliceai_scores.vcf.gz
+ccr_bed:
+  /Users/josephhalstead/Documents/genomics_resources/beds/ccrs.all.v2.20180420_37.bed.gz
+
 # Alternate pipeline execution
 
 perform_bqsr:
@@ -86,8 +91,6 @@ fastp_threads:
 fastq_screen_threads:
   1
 fastqc_threads:
-  1
-per_node_gatk_jobs:
   1
 manta_threads:
   1
