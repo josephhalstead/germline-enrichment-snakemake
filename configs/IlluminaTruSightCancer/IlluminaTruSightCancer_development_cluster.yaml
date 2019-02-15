@@ -15,9 +15,9 @@ gold_standard_indels:
 dbsnp_vcf_eval:
   /state/partition1/db/human/gatk/2.8/b37/dbsnp_138.b37.excluding_sites_after_129.vcf
 gnomad_exomes:
-  /data/db/human/gnomad/gnomad.exomes.r2.0.1.sites.vcf.gz
+  /share/data/db/human/gnomad/gnomad.exomes.r2.0.1.sites.vcf.gz
 gnomad_genomes:
-  /data/db/human/vep/snps/gnomad.genomes.r2.0.1.sites.noVEP.vcf.gz
+  /share/data/db/human/vep/snps/gnomad.genomes.r2.0.1.sites.noVEP.vcf.gz
 1000k_high_confidence_snps:
   /state/partition1/db/human/gatk/2.8/b37/1000G_phase1.snps.high_confidence.b37.vcf
 capture_bed_file:
@@ -27,9 +27,9 @@ fastq_screen_config:
 reference_sequence_dict:
   /state/partition1/db/human/gatk/2.8/b37/human_g1k_v37.dict
 vep_cache_location:
-  /data/db/human/vep/vep_cache
+  /share/data/db/human/vep/vep_cache
 genomic_superdups_bed:
-  /data/db/human/genomicSuperDups/genomicSuperDups_b37.bed.gz
+  /share/data/db/human/genomicSuperDups/genomicSuperDups_b37.bed.gz
 picard_temp_dir:
   /state/partition1/tmpdir
 fastqc_temp_dir:
@@ -37,20 +37,17 @@ fastqc_temp_dir:
 samtools_temp_dir:
   /state/partition1/tmpdir
 spliceai:
-  /data/db/human/SpliceAI/exome_spliceai_scores.vcf.gz
+  /share/data/db/human/SpliceAI/exome_spliceai_scores.vcf.gz
 ccr_bed:
-  /data/db/human/CCR/ccrs.all.v2.20180420_37.bed.gz
-
+  /share/data/db/human/CCR/ccrs.all.v2.20180420_37.bed.gz
 hotspot_bed_dir:
-  /share/data/results/190212_M00766_0189_000000000-CCC95/IlluminaTruSightCancer/germline-enrichment-snakemake/configs/IlluminaTruSightCancer/hotspot_coverage
-vep_cache_location:
-  /data/db/human/vep/vep_cache
+  /share/data/results/190212_M00766_0189_000000000-CCC95/IlluminaTruSightCancer/germline-enrichment-snakemake/configs/IlluminaTruSightCancer/hotspot_coverage/
 coverage_calculator:
-  /data/diagnostics/apps/CoverageCalculatorPy-1.0.0/CoverageCalculatorPy.py
+  /share/data/diagnostics/apps/CoverageCalculatorPy-1.0.0/CoverageCalculatorPy.py
 germline_hotspots:
   /share/data/results/190212_M00766_0189_000000000-CCC95/IlluminaTruSightCancer/germline-enrichment-snakemake/configs/GermlineEnrichment_Hotspots.bed
 refseq:
-  /data/db/human/refseq/ref_GRCh37.p13_top_level_canonical_b37_sorted.gff3.gz
+  /share/data/db/human/refseq/ref_GRCh37.p13_top_level_canonical_b37_sorted.gff3.gz
 filter_config:
   /share/data/results/190212_M00766_0189_000000000-CCC95/IlluminaTruSightCancer/germline-enrichment-snakemake/configs/filter_config_cluster.yaml
 local_panel_app_dump:

@@ -574,7 +574,7 @@ rule create_genomics_db:
 		index = expand("output/gvcfs/{sample_name}_{sample_number}_chr{{chr}}.g.vcf.idx", zip, sample_name=sample_names, sample_number=sample_numbers),
 		bed = "output/config/split_capture_bed/{chr}.bed"
 	output:
-		directory("output/genomicdbs/{seq_id}_chr{chr}")
+		temp(directory("output/genomicdbs/{seq_id}_chr{chr}"))
 	params:
 		files = lambda wildcards, input: " -V ".join(input.gvcfs),
 		java_options = config["gatk_genomics_db_java_options"],
@@ -593,7 +593,8 @@ rule genotype_gvcfs:
 		db = "output/genomicdbs/{seq_id}_chr{chr}",
 		bed = "output/config/split_capture_bed/{chr}.bed",
 	output:
-		temp("output/jointvcf_per_chr/{seq_id}_chr{chr}.vcf")
+		temp("output/jointvcf_per_chr/{seq_id}_chr{chr}.vcf"),
+		temp("output/jointvcf_per_chr/{seq_id}_chr{chr}.vcf.idx")
 	params:
 		ref = config["reference"],
 		java_options = config['gatk_hc_java_options'],
@@ -609,16 +610,18 @@ rule genotype_gvcfs:
 # Combine the chromsome vcfs into one final vcf with all samples and all chromosomes
 rule collect_vcfs:
 	input:
-		expand("output/jointvcf_per_chr/{{seq_id}}_chr{chr}.vcf", chr= chromosomes)
+		vcf = expand("output/jointvcf_per_chr/{{seq_id}}_chr{chr}.vcf", chr= chromosomes)
+		index = expand("output/jointvcf_per_chr/{{seq_id}}_chr{chr}.vcf.idx", chr= chromosomes)
 	output:
-		temp("output/jointvcf/{seq_id}_all_chr.vcf")
+		vcf = temp("output/jointvcf/{seq_id}_all_chr.vcf"),
+		index = temp("output/jointvcf/{seq_id}_all_chr.vcf.idx")
 	params:
-		files = lambda wildcards, input: " I=".join(input),
+		files = lambda wildcards, input: " I=".join(input.vcf),
 		java_home = config["java_home"]
 	shell:
 		"export JAVA_HOME={params.java_home}; picard GatherVcfs "
 		"I={params.files} "
-		"O={output}"
+		"O={output.vcf}"
 
 
 #-----------------------------------------------------------------------------------------------------------------#
@@ -629,8 +632,10 @@ rule collect_vcfs:
 rule select_snps_for_filtering:
 	input:
 		vcf = "output/jointvcf/{seq_id}_all_chr.vcf",
+		index = "output/jointvcf/{seq_id}_all_chr.vcf.idx"
 	output:
-		temp("output/jointvcf_snps/{seq_id}_all_chr_snps.vcf")
+		vcf = temp("output/jointvcf_snps/{seq_id}_all_chr_snps.vcf")
+		index = temp("output/jointvcf_snps/{seq_id}_all_chr_snps.vcf.idx")
 	params:
 		ref = config["reference"],
 		padding = config["interval_padding_haplotype_caller"],
@@ -643,14 +648,16 @@ rule select_snps_for_filtering:
 		"-select-type SNP "
 		"-L {params.bed} "
 		"--interval-padding {params.padding} "
-		"-O {output} "
+		"-O {output.vcf} "
 
 # Filter the SNPs on quality
 rule filter_snps:
 	input:
 		vcf = "output/jointvcf_snps/{seq_id}_all_chr_snps.vcf",
+		index = "output/jointvcf_snps/{seq_id}_all_chr_snps.vcf.idx"
 	output:
-		temp("output/jointvcf_snps_filtered/{seq_id}_all_chr_snps_filtered.vcf")
+		vcf = temp("output/jointvcf_snps_filtered/{seq_id}_all_chr_snps_filtered.vcf"),
+		index = temp("output/jointvcf_snps_filtered/{seq_id}_all_chr_snps_filtered.vcf.idx")
 	params:
 		ref = config["reference"],
 		padding = config["interval_padding_haplotype_caller"],
@@ -669,7 +676,7 @@ rule filter_snps:
 		"-V {input.vcf} "
 		"-L {params.bed} "
 		"--interval-padding {params.padding} "
-		"-O {output} "
+		"-O {output.vcf} "
 		"--filter-expression 'QUAL < {params.min_qual}' "
 		"--filter-name 'LowQual' "
 		"--filter-expression 'QD <  {params.min_QD}' "
@@ -687,8 +694,10 @@ rule filter_snps:
 rule select_non_snps_for_filtering:
 	input:
 		vcf = "output/jointvcf/{seq_id}_all_chr.vcf",
+		index = "output/jointvcf/{seq_id}_all_chr.vcf.idx",
 	output:
-		temp("output/jointvcf_indels/{seq_id}_all_chr_indels.vcf")
+		vcf = temp("output/jointvcf_indels/{seq_id}_all_chr_indels.vcf"),
+		index = temp("output/jointvcf_indels/{seq_id}_all_chr_indels.vcf.idx")
 	params:
 		ref = config["reference"],
 		padding = config["interval_padding_haplotype_caller"],
@@ -701,14 +710,16 @@ rule select_non_snps_for_filtering:
 		"--select-type-to-exclude SNP "
 		"-L {params.bed} "
 		"--interval-padding {params.padding} "
-		"-O {output} "
+		"-O {output.vcf} "
 
 # Filter the non SNPs
 rule filter_non_snps:
 	input:
 		vcf = "output/jointvcf_indels/{seq_id}_all_chr_indels.vcf",
+		index = "output/jointvcf_indels/{seq_id}_all_chr_indels.vcf"
 	output:
-		temp("output/jointvcf_indels_filtered/{seq_id}_all_chr_indels_filtered.vcf")
+		vcf = temp("output/jointvcf_indels_filtered/{seq_id}_all_chr_indels_filtered.vcf")
+		index = temp("output/jointvcf_indels_filtered/{seq_id}_all_chr_indels_filtered.vcf.idx")
 	params:
 		ref = config["reference"],
 		padding = config["interval_padding_haplotype_caller"],
@@ -727,7 +738,7 @@ rule filter_non_snps:
 		"-V {input} "
 		"-L {params.bed} "
 		"--interval-padding {params.padding} "
-		"-O {output} "
+		"-O {output.vcf} "
 		"--filter-expression 'QUAL < {params.min_qual}' "
 		"--filter-name 'LowQual' "
 		"--filter-expression 'QD <  {params.min_QD}' "
@@ -747,7 +758,8 @@ rule combine_filtered_snps_and_indels:
 		snps = "output/jointvcf_snps_filtered/{seq_id}_all_chr_snps_filtered.vcf",
 		indels = "output/jointvcf_indels_filtered/{seq_id}_all_chr_indels_filtered.vcf"
 	output:
-		temp("output/jointvcf_all_variants_filtered/{seq_id}_all_variants_filtered.vcf")
+		vcf = temp("output/jointvcf_all_variants_filtered/{seq_id}_all_variants_filtered.vcf")
+		index = temp("output/jointvcf_all_variants_filtered/{seq_id}_all_variants_filtered.vcf.idx")
 	params:
 		java_options = config["gatk_variants_java_options"]
 	shell:
@@ -755,14 +767,16 @@ rule combine_filtered_snps_and_indels:
 		"MergeVcfs "
 		"-I {input.snps} "
 		"-I {input.indels} "
-		"-O {output}"		
+		"-O {output.vcf}"		
 
 # Filter on genotype quality
 rule filter_genotypes:
 	input:
-		"output/jointvcf_all_variants_filtered/{seq_id}_all_variants_filtered.vcf"
+		vcf = "output/jointvcf_all_variants_filtered/{seq_id}_all_variants_filtered.vcf",
+		index = "output/jointvcf_all_variants_filtered/{seq_id}_all_variants_filtered.vcf.idx"
 	output:
-		"output/jointvcf_all_variants_filtered_genotype/{seq_id}_all_variants_filtered_genotype.vcf"
+		vcf = "output/jointvcf_all_variants_filtered_genotype/{seq_id}_all_variants_filtered_genotype.vcf",
+		index = temp("output/jointvcf_all_variants_filtered_genotype/{seq_id}_all_variants_filtered_genotype.vcf.idx")
 	params:
 		ref = config["reference"],
 		padding = config["interval_padding_haplotype_caller"],
@@ -872,7 +886,7 @@ rule compress_and_index_vep:
 		"output/jointvcf_all_variants_filtered_genotype_roi_norm_vep/{seq_id}_all_variants_filtered_genotype_roi_norm_vep.vcf"
 	output:
 		"output/jointvcf_all_variants_filtered_genotype_roi_norm_vep/{seq_id}_all_variants_filtered_genotype_roi_norm_vep.vcf.gz",
-		"output/jointvcf_all_variants_filtered_genotype_roi_norm_vep/{seq_id}_all_variants_filtered_genotype_roi_norm_vep.vcf.tbi"
+		"output/jointvcf_all_variants_filtered_genotype_roi_norm_vep/{seq_id}_all_variants_filtered_genotype_roi_norm_vep.vcf.gz.tbi"
 	shell:
 		"bgzip {input} && tabix {input}.gz"	
 
@@ -880,7 +894,7 @@ rule compress_and_index_vep:
 rule convert_to_csv:
 	input:
 		vcf = "output/jointvcf_all_variants_filtered_genotype_roi_norm_vep/{seq_id}_all_variants_filtered_genotype_roi_norm_vep.vcf.gz",
-		index = "output/jointvcf_all_variants_filtered_genotype_roi_norm_vep/{seq_id}_all_variants_filtered_genotype_roi_norm_vep.vcf.tbi"
+		index = "output/jointvcf_all_variants_filtered_genotype_roi_norm_vep/{seq_id}_all_variants_filtered_genotype_roi_norm_vep.vcf.gz.tbi"
 	output:
 		"output/vcf_csv/{seq_id}_vcf.csv"
 	shell:
@@ -891,11 +905,12 @@ rule convert_to_csv:
 # Get the CSQ string which describes the VEP fields	
 rule get_csq_string:
 	input:
-		"output/jointvcf_all_variants_filtered_genotype_roi_norm_vep/{seq_id}_all_variants_filtered_genotype_roi_norm_vep.vcf"
+		vcf = "output/jointvcf_all_variants_filtered_genotype_roi_norm_vep/{seq_id}_all_variants_filtered_genotype_roi_norm_vep.vcf.gz",
+		index = "output/jointvcf_all_variants_filtered_genotype_roi_norm_vep/{seq_id}_all_variants_filtered_genotype_roi_norm_vep.vcf.gz.tbi"
 	output:
-		"output/config/csq/{seq_id}_csq.txt"
+		temp("output/config/csq/{seq_id}_csq.txt")
 	shell:
-		"grep \"^##INFO=<ID=CSQ\" {input} | awk 'BEGIN {{ FS = \":\" }} ; {{ print $2 }}' | tr -d '>\" ' > {output} "
+		"zcat {input.vcf} | grep \"^##INFO=<ID=CSQ\" | awk 'BEGIN {{ FS = \":\" }} ; {{ print $2 }}' | tr -d '>\" ' > {output} "
 
 # Run the germline variant filter program
 rule create_variant_reports:
@@ -929,7 +944,7 @@ rule collect_meta_data:
 	input:
 		meta = expand("output/vcf_meta/{sample_name}_{sample_number}_meta.txt", zip, sample_name=sample_names, sample_number=sample_numbers)
 	output:
-		meta = "output/vcf_meta/merged_meta.txt"
+		meta = temp("output/vcf_meta/merged_meta.txt")
 	shell:
 		"cat {input.meta} > {output.meta}"
 
@@ -961,7 +976,8 @@ rule create_vcf_without_mt:
 # Check the final vcf in valid
 rule validate_vcf:
 	input:
-		"output/jointvcf_all_variants_filtered_genotype_roi_norm_vep/{seq_id}_all_variants_filtered_genotype_roi_norm_vep.vcf"
+		"output/jointvcf_all_variants_filtered_genotype_roi_norm_vep/{seq_id}_all_variants_filtered_genotype_roi_norm_vep.vcf.gz",
+		"output/jointvcf_all_variants_filtered_genotype_roi_norm_vep/{seq_id}_all_variants_filtered_genotype_roi_norm_vep.vcf.gz.tbi"
 	output:
 		"output/validated_vcf/{seq_id}.validated"
 	params:
@@ -992,7 +1008,7 @@ rule variant_evaluation:
 	shell:
 		"export JAVA_HOME={params.java_home}; picard CollectVariantCallingMetrics "
 		"I={input} "
-		"O=output/qc_reports/variant_calling_metrics/{wildcards.seq_id} "
+		"O=output/qc_reports/variant_calling_metrics/{wildcards.seq_id}_CollectVariantCallingMetrics "
 		"DBSNP={params.dbsnp_vcf} "
 		"THREAD_COUNT={threads}"
 
@@ -1004,8 +1020,8 @@ rule calculate_sex:
 		bam_index = "output/final_bam/{sample_name}_{sample_number}_final.bai"
 	output:
 		sex = "output/qc_reports/sex/{sample_name}_{sample_number}_sex.txt",
-		y_bed = "output/config/y_bed/{sample_name}_{sample_number}_y.bed",
-		y_cov = "output/depth/y_coverage/{sample_name}_{sample_number}_DepthOfCoverage.sample_summary",
+		y_bed = temp("output/config/y_bed/{sample_name}_{sample_number}_y.bed"),
+		y_cov = temp("output/depth/y_coverage/{sample_name}_{sample_number}_DepthOfCoverage.sample_summary"),
 	params:
 		bed = config["capture_bed_file"],
 		ref = config["reference"],
@@ -1349,6 +1365,8 @@ if panel == "IlluminaTruSightCancer":
 		params:
 			coverage_calculator = config["coverage_calculator"],
 			min_depth = config["minimum_coverage"]
+		group:
+			"custom_coverage"
 		shell:
 			"python  {params.coverage_calculator} "
 			"-B {input.bed} "
@@ -1357,6 +1375,16 @@ if panel == "IlluminaTruSightCancer":
 			"--padding 0 "
 			"--outdir output/depth/hotspot_coverage/ "
 			"--outname {wildcards.sample_name}_{wildcards.sample_number}_{wildcards.bedfile} "
+
+	rule collect_custom_coverage:
+		input:
+			get_all_custom_coverage
+		output:
+			"output/depth/hotspot_coverage/custom.finished"
+		group:
+			"custom_coverage"
+		shell:
+			"touch {output}"
 
 #-----------------------------------------------------------------------------------------------------------------#
 # Final Rules
@@ -1389,7 +1417,7 @@ else:
 			input:
 				"output/validated_vcf/{seq_id}.validated",
 				expand("output/manta/{sample_name}_{sample_number}/results/variants/diploidSV.vcf.gz", zip, sample_name=sample_names, sample_number=sample_numbers),
-				get_all_custom_coverage,
+				"output/depth/hotspot_coverage/custom.finished"
 				"output/vcf_csv/{seq_id}_vcf.csv",
 				"output/variant_reports/{seq_id}_finished.txt",
 				"output/combined_sv_report/" + seq_id + "_cnvReport.csv",
