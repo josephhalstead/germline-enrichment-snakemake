@@ -571,7 +571,7 @@ rule create_gvcfs:
 rule create_genomics_db:
 	input:
 		gvcfs = expand("output/gvcfs/{sample_name}_{sample_number}_chr{{chr}}.g.vcf" , zip, sample_name=sample_names, sample_number=sample_numbers),
-		index = expand("output/gvcfs/{sample_name}_{sample_number}_chr{chr}.g.vcf.idx", zip, sample_name=sample_names, sample_number=sample_numbers),
+		index = expand("output/gvcfs/{sample_name}_{sample_number}_chr{{chr}}.g.vcf.idx", zip, sample_name=sample_names, sample_number=sample_numbers),
 		bed = "output/config/split_capture_bed/{chr}.bed"
 	output:
 		directory("output/genomicdbs/{seq_id}_chr{chr}")
