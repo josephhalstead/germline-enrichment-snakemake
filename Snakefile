@@ -589,7 +589,7 @@ rule create_genomics_db:
 # Genotype the gvcfs and produce a joint vcf
 rule genotype_gvcfs:
 	input:
-		db = directory("output/genomicdbs/{seq_id}_chr{chr}"),
+		db = "output/genomicdbs/{seq_id}_chr{chr}",
 		bed = "output/config/split_capture_bed/{chr}.bed",
 	output:
 		temp("output/jointvcf_per_chr/{seq_id}_chr{chr}.vcf")
@@ -1304,7 +1304,7 @@ if panel == "IlluminaTruSightCancer":
 	# Generate single bedfile from gene beds in order to enable custom reporting of gaps and coverage for TSC panel
 	rule create_hotspots_bed_file:
 		input:
-			directory(config["hotspot_bed_dir"])
+			config["hotspot_bed_dir"]
 		output:
 			"output/config/hotspot_bed/IlluminaTruSightCancer_CustomROI_b37.bed"
 		shell:
