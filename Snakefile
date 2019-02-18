@@ -787,10 +787,10 @@ rule filter_genotypes:
 		"gatk --java-options '{params.java_options}' "
 		"VariantFiltration "
 		"-R {params.ref} "
-		"-V {input} "
+		"-V {input.vcf} "
 		"-L {params.bed} "
 		"--interval-padding {params.padding} "
-		"-O {output} "
+		"-O {output.vcf} "
 		"--genotype-filter-expression 'DP < {params.min_genotype_depth}' "
 		"--genotype-filter-name 'LowDP' "
 
@@ -976,15 +976,15 @@ rule create_vcf_without_mt:
 # Check the final vcf in valid
 rule validate_vcf:
 	input:
-		"output/jointvcf_all_variants_filtered_genotype_roi_norm_vep/{seq_id}_all_variants_filtered_genotype_roi_norm_vep.vcf.gz",
-		"output/jointvcf_all_variants_filtered_genotype_roi_norm_vep/{seq_id}_all_variants_filtered_genotype_roi_norm_vep.vcf.gz.tbi"
+		vcf = "output/jointvcf_all_variants_filtered_genotype_roi_norm_vep/{seq_id}_all_variants_filtered_genotype_roi_norm_vep.vcf.gz",
+		index = "output/jointvcf_all_variants_filtered_genotype_roi_norm_vep/{seq_id}_all_variants_filtered_genotype_roi_norm_vep.vcf.gz.tbi"
 	output:
 		"output/validated_vcf/{seq_id}.validated"
 	params:
 		ref = config["reference"]
 	shell:
 		"gatk ValidateVariants "
-		"-V {input} "
+		"-V {input.vcf} "
 		"-R {params.ref} "
 		"&& touch {output}"
 
