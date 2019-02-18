@@ -1020,10 +1020,9 @@ rule calculate_sex:
 		bam = "output/final_bam/{sample_name}_{sample_number}_final.bam",
 		bam_index = "output/final_bam/{sample_name}_{sample_number}_final.bai"
 	output:
-		sex = "output/qc_reports/sex/{sample_name}_{sample_number}_sex.txt",
+		sex = temp("output/qc_reports/sex/{sample_name}_{sample_number}_sex.txt"),
 		y_bed = temp("output/config/y_bed/{sample_name}_{sample_number}_y.bed"),
-		y_cov = temp("output/depth/y_coverage/{sample_name}_{sample_number}_DepthOfCoverage.sample_summary"),
-		y_cov_stats = temp("output/depth/y_coverage/{sample_name}_{sample_number}_DepthOfCoverage.sample_statistics")
+		y_cov = temp("output/depth/y_coverage/{sample_name}_{sample_number}_DepthOfCoverage.sample_summary")
 	params:
 		bed = config["capture_bed_file"],
 		ref = config["reference"],
@@ -1216,7 +1215,7 @@ rule run_manta_config:
 	output:
 		temp("output/manta/{sample_name}_{sample_number}/runWorkflow.py")
 	params:
-		ref = config["reference"]
+		ref = config["reference"],
 	conda:
 		"envs/python2.yaml"
 	group: "manta"
@@ -1245,7 +1244,7 @@ rule run_manta:
 		"-m local "
 		"-j {threads}"
 
-# Just keep the Manta
+# Just keep the Manta results and discard Manta working folder
 rule copy_manta_results:
 	input:
 		vcf = "output/manta/{sample_name}_{sample_number}/results/variants/diploidSV.vcf.gz",
@@ -1253,6 +1252,7 @@ rule copy_manta_results:
 	output:
 		vcf = "output/manta/{sample_name}_{sample_number}_diploidSV.vcf.gz",
 		index = "output/manta/{sample_name}_{sample_number}_diploidSV.vcf.gz.tbi"
+	group: "manta"
 	shell:
 		"cp {input.vcf} {output.vcf} && cp {input.index} {output.index} && rm -r output/manta/{wildcards.sample_name}_{wildcards.sample_number}/"			
 
@@ -1433,7 +1433,7 @@ else:
 		rule final:
 			input:
 				"output/validated_vcf/{seq_id}.validated",
-				expand("output/manta/{sample_name}_{sample_number}/results/variants/diploidSV.vcf.gz", zip, sample_name=sample_names, sample_number=sample_numbers),
+				expand("output/manta/{sample_name}_{sample_number}_diploidSV.vcf.gz", zip, sample_name=sample_names, sample_number=sample_numbers),
 				"output/depth/hotspot_coverage/custom.finished",
 				"output/vcf_csv/{seq_id}_vcf.csv",
 				"output/variant_reports/{seq_id}_finished.txt",
