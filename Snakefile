@@ -593,8 +593,8 @@ rule genotype_gvcfs:
 		db = "output/genomicdbs/{seq_id}_chr{chr}",
 		bed = "output/config/split_capture_bed/{chr}.bed",
 	output:
-		temp("output/jointvcf_per_chr/{seq_id}_chr{chr}.vcf"),
-		temp("output/jointvcf_per_chr/{seq_id}_chr{chr}.vcf.idx")
+		vcf = temp("output/jointvcf_per_chr/{seq_id}_chr{chr}.vcf"),
+		index = temp("output/jointvcf_per_chr/{seq_id}_chr{chr}.vcf.idx")
 	params:
 		ref = config["reference"],
 		java_options = config['gatk_hc_java_options'],
@@ -603,14 +603,14 @@ rule genotype_gvcfs:
 		"gatk --java-options '{params.java_options}'  GenotypeGVCFs -R {params.ref} "
 		"-V gendb://{input.db} "
 		"-G StandardAnnotation "
-		"-O {output} "
+		"-O {output.vcf} "
 		"-L {input.bed} "
 		"--interval-padding {params.padding} "
 
 # Combine the chromsome vcfs into one final vcf with all samples and all chromosomes
 rule collect_vcfs:
 	input:
-		vcf = expand("output/jointvcf_per_chr/{{seq_id}}_chr{chr}.vcf", chr= chromosomes)
+		vcf = expand("output/jointvcf_per_chr/{{seq_id}}_chr{chr}.vcf", chr= chromosomes),
 		index = expand("output/jointvcf_per_chr/{{seq_id}}_chr{chr}.vcf.idx", chr= chromosomes)
 	output:
 		vcf = temp("output/jointvcf/{seq_id}_all_chr.vcf"),
@@ -634,7 +634,7 @@ rule select_snps_for_filtering:
 		vcf = "output/jointvcf/{seq_id}_all_chr.vcf",
 		index = "output/jointvcf/{seq_id}_all_chr.vcf.idx"
 	output:
-		vcf = temp("output/jointvcf_snps/{seq_id}_all_chr_snps.vcf")
+		vcf = temp("output/jointvcf_snps/{seq_id}_all_chr_snps.vcf"),
 		index = temp("output/jointvcf_snps/{seq_id}_all_chr_snps.vcf.idx")
 	params:
 		ref = config["reference"],
@@ -716,9 +716,9 @@ rule select_non_snps_for_filtering:
 rule filter_non_snps:
 	input:
 		vcf = "output/jointvcf_indels/{seq_id}_all_chr_indels.vcf",
-		index = "output/jointvcf_indels/{seq_id}_all_chr_indels.vcf"
+		index = "output/jointvcf_indels/{seq_id}_all_chr_indels.vcf.idx"
 	output:
-		vcf = temp("output/jointvcf_indels_filtered/{seq_id}_all_chr_indels_filtered.vcf")
+		vcf = temp("output/jointvcf_indels_filtered/{seq_id}_all_chr_indels_filtered.vcf"),
 		index = temp("output/jointvcf_indels_filtered/{seq_id}_all_chr_indels_filtered.vcf.idx")
 	params:
 		ref = config["reference"],
@@ -735,7 +735,7 @@ rule filter_non_snps:
 		"gatk --java-options '{params.java_options}' "
 		"VariantFiltration "
 		"-R {params.ref} "
-		"-V {input} "
+		"-V {input.vcf} "
 		"-L {params.bed} "
 		"--interval-padding {params.padding} "
 		"-O {output.vcf} "
@@ -758,7 +758,7 @@ rule combine_filtered_snps_and_indels:
 		snps = "output/jointvcf_snps_filtered/{seq_id}_all_chr_snps_filtered.vcf",
 		indels = "output/jointvcf_indels_filtered/{seq_id}_all_chr_indels_filtered.vcf"
 	output:
-		vcf = temp("output/jointvcf_all_variants_filtered/{seq_id}_all_variants_filtered.vcf")
+		vcf = temp("output/jointvcf_all_variants_filtered/{seq_id}_all_variants_filtered.vcf"),
 		index = temp("output/jointvcf_all_variants_filtered/{seq_id}_all_variants_filtered.vcf.idx")
 	params:
 		java_options = config["gatk_variants_java_options"]
@@ -1217,6 +1217,7 @@ rule run_manta_config:
 		ref = config["reference"]
 	conda:
 		"envs/python2.yaml"
+	group: "manta"
 	shell:
 		"configManta.py "
 		"--bam {input} "
@@ -1234,6 +1235,7 @@ rule run_manta:
 		"envs/python2.yaml"
 	threads:
 		config["manta_threads"]
+	group: "manta"
 	shell:
 		"{input} "
 		"--quiet "
@@ -1417,7 +1419,7 @@ else:
 			input:
 				"output/validated_vcf/{seq_id}.validated",
 				expand("output/manta/{sample_name}_{sample_number}/results/variants/diploidSV.vcf.gz", zip, sample_name=sample_names, sample_number=sample_numbers),
-				"output/depth/hotspot_coverage/custom.finished"
+				"output/depth/hotspot_coverage/custom.finished",
 				"output/vcf_csv/{seq_id}_vcf.csv",
 				"output/variant_reports/{seq_id}_finished.txt",
 				"output/combined_sv_report/" + seq_id + "_cnvReport.csv",
