@@ -1214,7 +1214,7 @@ rule run_manta_config:
 	input:
 		bam_file = "output/final_bam/{sample_name}_{sample_number}_final.bam"
 	output:
-		temp(directory("output/manta/{sample_name}_{sample_number}/"))
+		temp("output/manta/{sample_name}_{sample_number}/runWorkflow.py")
 	params:
 		ref = config["reference"]
 	conda:
@@ -1230,34 +1230,31 @@ rule run_manta_config:
 # Execute the manta script
 rule run_manta:
 	input:
-		"output/manta/{sample_name}_{sample_number}"
+		"output/manta/{sample_name}_{sample_number}/runWorkflow.py"
 	output:
-		temp("output/manta/{sample_name}_{sample_number}/results/variants/diploidSV.vcf.gz"),
-		temp("output/manta/{sample_name}_{sample_number}/results/variants/diploidSV.vcf.gz.tbi")
+		"output/manta/{sample_name}_{sample_number}/results/variants/diploidSV.vcf.gz",
+		"output/manta/{sample_name}_{sample_number}/results/variants/diploidSV.vcf.gz.tbi",
 	conda:
 		"envs/python2.yaml"
 	threads:
 		config["manta_threads"]
 	group: "manta"
 	shell:
-		"{input}/runWorkflow.py "
+		"{input} "
 		"--quiet "
 		"-m local "
 		"-j {threads}"
 
-# Just keep the Manta diploidSV file.
+# Just keep the Manta
 rule copy_manta_results:
 	input:
-		folder = "output/manta/{sample_name}_{sample_number}/",
-		vcf = "output/manta/{sample_name}_{sample_number}/results/variants/diploidSV.vcf.gz"
+		vcf = "output/manta/{sample_name}_{sample_number}/results/variants/diploidSV.vcf.gz",
 		index = "output/manta/{sample_name}_{sample_number}/results/variants/diploidSV.vcf.gz.tbi"
 	output:
 		vcf = "output/manta/{sample_name}_{sample_number}_diploidSV.vcf.gz",
 		index = "output/manta/{sample_name}_{sample_number}_diploidSV.vcf.gz.tbi"
-	group: "manta"
 	shell:
-		"cp {input.vcf} {output.vcf} && cp {input.index} {output.index}"
-
+		"cp {input.vcf} {output.vcf} && cp {input.index} {output.index} && rm -r output/manta/{wildcards.sample_name}_{wildcards.sample_number}/"			
 
 # Collect all the high coverage bams and put them in a single file.
 rule high_coverage_bam_list:
@@ -1350,7 +1347,8 @@ if panel == "IlluminaTruSightCancer":
 	rule create_combined_sv_report:
 		input:
 			bed = "output/config/hotspot_bed/IlluminaTruSightCancer_CustomROI_b37.bed",
-			manta = expand("output/manta/{sample_name}_{sample_number}/results/variants/diploidSV.vcf.gz", zip, sample_name=sample_names, sample_number=sample_numbers),
+			manta = expand("output/manta/{sample_name}_{sample_number}_diploidSV.vcf.gz", zip, sample_name=sample_names, sample_number=sample_numbers),
+			manta_index = expand("output/manta/{sample_name}_{sample_number}_diploidSV.vcf.gz.tbi", zip, sample_name=sample_names, sample_number=sample_numbers),
 			exome_depth = expand("output/exome_depth/{sample_name}_{sample_number}_final_cnv_fixed.vcf.gz.tbi", zip, sample_name=sample_names, sample_number=sample_numbers),
 			high_coverage_bams = "output/qc_reports/final_high_coverage_bams/high_coverage_bams.txt",
 			exome_depth_metrics = "output/exome_depth/" + seq_id + "_ExomeDepth_Metrics.txt",
@@ -1416,7 +1414,7 @@ if config["perform_bqsr"] == True:
 	rule final:
 		input:
 			"output/validated_vcf/{seq_id}.validated",
-			expand("output/manta/{sample_name}_{sample_number}/results/variants/diploidSV.vcf.gz", zip, sample_name=sample_names, sample_number=sample_numbers),
+			expand("output/manta/{sample_name}_{sample_number}_diploidSV.vcf.gz", zip, sample_name=sample_names, sample_number=sample_numbers),
 			"output/variant_reports/{seq_id}_finished.txt",
 			"output/jointvcf_all_variants_filtered_genotype_roi_meta_nomt/{seq_id}_all_variants_filtered_genotype_roi_meta_nomt.vcf",
 			expand("output/qc_reports/bqsr/{sample_name}_{sample_number}_bqsr_covariation.csv", zip, sample_name=sample_names, sample_number=sample_numbers),
@@ -1454,7 +1452,7 @@ else:
 		rule final:
 			input:
 				"output/validated_vcf/{seq_id}.validated",
-				expand("output/manta/{sample_name}_{sample_number}/results/variants/diploidSV.vcf.gz", zip, sample_name=sample_names, sample_number=sample_numbers),
+				expand("output/manta/{sample_name}_{sample_number}_diploidSV.vcf.gz", zip, sample_name=sample_names, sample_number=sample_numbers),
 				"output/vcf_csv/{seq_id}_vcf.csv",
 				"output/variant_reports/{seq_id}_finished.txt",
 				"output/jointvcf_all_variants_filtered_genotype_roi_meta_nomt/{seq_id}_all_variants_filtered_genotype_roi_meta_nomt.vcf",
