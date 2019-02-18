@@ -56,7 +56,7 @@ mergedDf <- lapply(sampleId, function(sample) {
     depth <- passQC[passQC$sampleId %in% sample, "Depth"] 
     
     exomeDepth <- paste0(exome_depth_dir, sample, "_final_cnv_fixed.vcf.gz")
-    manta      <- paste0(manta_dir, sample,"/results/variants/diploidSV.vcf.gz")
+    manta      <- paste0(manta_dir, sample,"_diploidSV.vcf.gz")
     
     ## extract information from exomeDepth
     vcf    <- VariantAnnotation::readVcf(exomeDepth, "hg19")

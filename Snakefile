@@ -115,6 +115,7 @@ rule fastp:
 		"-O {output.rev} "
 		"-h {output.html} "
 		"-j {output.json} "
+		"--disable_quality_filtering "
 		"--detect_adapter_for_pe "
 		"-w {threads}"
 
@@ -346,7 +347,7 @@ rule create_interval_file:
 	input:
 		config["capture_bed_file"]
 	output:
-		"output/config/" + Path(config["capture_bed_file"]).name.split(".")[0] + ".interval_list"
+		temp("output/config/" + Path(config["capture_bed_file"]).name.split(".")[0] + ".interval_list")
 	params:
 		sequence_dict = config["reference_sequence_dict"],
 		java_home = config["java_home"]
@@ -896,7 +897,7 @@ rule convert_to_csv:
 		vcf = "output/jointvcf_all_variants_filtered_genotype_roi_norm_vep/{seq_id}_all_variants_filtered_genotype_roi_norm_vep.vcf.gz",
 		index = "output/jointvcf_all_variants_filtered_genotype_roi_norm_vep/{seq_id}_all_variants_filtered_genotype_roi_norm_vep.vcf.gz.tbi"
 	output:
-		"output/vcf_csv/{seq_id}_vcf.csv"
+		temp("output/vcf_csv/{seq_id}_vcf.csv")
 	shell:
 		"gatk VariantsToTable -V {input.vcf} "
 		"-O {output} -F CHROM -F POS -F REF -F ALT -F ID -F QUAL -F FILTER -F CSQ -F AC "
@@ -1022,6 +1023,7 @@ rule calculate_sex:
 		sex = "output/qc_reports/sex/{sample_name}_{sample_number}_sex.txt",
 		y_bed = temp("output/config/y_bed/{sample_name}_{sample_number}_y.bed"),
 		y_cov = temp("output/depth/y_coverage/{sample_name}_{sample_number}_DepthOfCoverage.sample_summary"),
+		y_cov_stats = temp("output/depth/y_coverage/{sample_name}_{sample_number}_DepthOfCoverage.sample_statistics")
 	params:
 		bed = config["capture_bed_file"],
 		ref = config["reference"],
@@ -1212,7 +1214,7 @@ rule run_manta_config:
 	input:
 		bam_file = "output/final_bam/{sample_name}_{sample_number}_final.bam"
 	output:
-		temp("output/manta/{sample_name}_{sample_number}/runWorkflow.py")
+		temp(directory("output/manta/{sample_name}_{sample_number}/"))
 	params:
 		ref = config["reference"]
 	conda:
@@ -1228,19 +1230,34 @@ rule run_manta_config:
 # Execute the manta script
 rule run_manta:
 	input:
-		"output/manta/{sample_name}_{sample_number}/runWorkflow.py"
+		"output/manta/{sample_name}_{sample_number}"
 	output:
-		"output/manta/{sample_name}_{sample_number}/results/variants/diploidSV.vcf.gz"
+		temp("output/manta/{sample_name}_{sample_number}/results/variants/diploidSV.vcf.gz"),
+		temp("output/manta/{sample_name}_{sample_number}/results/variants/diploidSV.vcf.gz.tbi")
 	conda:
 		"envs/python2.yaml"
 	threads:
 		config["manta_threads"]
 	group: "manta"
 	shell:
-		"{input} "
+		"{input}/runWorkflow.py "
 		"--quiet "
 		"-m local "
 		"-j {threads}"
+
+# Just keep the Manta diploidSV file.
+rule copy_manta_results:
+	input:
+		folder = "output/manta/{sample_name}_{sample_number}/",
+		vcf = "output/manta/{sample_name}_{sample_number}/results/variants/diploidSV.vcf.gz"
+		index = "output/manta/{sample_name}_{sample_number}/results/variants/diploidSV.vcf.gz.tbi"
+	output:
+		vcf = "output/manta/{sample_name}_{sample_number}_diploidSV.vcf.gz",
+		index = "output/manta/{sample_name}_{sample_number}_diploidSV.vcf.gz.tbi"
+	group: "manta"
+	shell:
+		"cp {input.vcf} {output.vcf} && cp {input.index} {output.index}"
+
 
 # Collect all the high coverage bams and put them in a single file.
 rule high_coverage_bam_list:
@@ -1265,7 +1282,7 @@ rule make_cnv_bed:
 	input:
 		config["capture_bed_file"]
 	output:
-		temp("output/config/cnv_bed/" + panel + "_ROI_b37_CNV.bed")
+		"output/config/cnv_bed/" + panel + "_ROI_b37_CNV.bed"
 	params:
 		genomic_superdups_bed = config["genomic_superdups_bed"],
 		ref_index = config["reference_index"],
