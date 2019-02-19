@@ -117,6 +117,7 @@ rule fastp:
 		"-j {output.json} "
 		"--disable_quality_filtering "
 		"--detect_adapter_for_pe "
+		"--length_required 35 "
 		"-w {threads}"
 
 # Check for inter-species contamination
@@ -1252,7 +1253,6 @@ rule copy_manta_results:
 	output:
 		vcf = "output/manta/{sample_name}_{sample_number}_diploidSV.vcf.gz",
 		index = "output/manta/{sample_name}_{sample_number}_diploidSV.vcf.gz.tbi"
-	group: "manta"
 	shell:
 		"cp {input.vcf} {output.vcf} && cp {input.index} {output.index} && rm -r output/manta/{wildcards.sample_name}_{wildcards.sample_number}/"			
 
@@ -1435,7 +1435,6 @@ else:
 				"output/validated_vcf/{seq_id}.validated",
 				expand("output/manta/{sample_name}_{sample_number}_diploidSV.vcf.gz", zip, sample_name=sample_names, sample_number=sample_numbers),
 				"output/depth/hotspot_coverage/custom.finished",
-				"output/vcf_csv/{seq_id}_vcf.csv",
 				"output/variant_reports/{seq_id}_finished.txt",
 				"output/combined_sv_report/" + seq_id + "_cnvReport.csv",
 				"output/jointvcf_all_variants_filtered_genotype_roi_meta_nomt/{seq_id}_all_variants_filtered_genotype_roi_meta_nomt.vcf",
@@ -1453,7 +1452,6 @@ else:
 			input:
 				"output/validated_vcf/{seq_id}.validated",
 				expand("output/manta/{sample_name}_{sample_number}_diploidSV.vcf.gz", zip, sample_name=sample_names, sample_number=sample_numbers),
-				"output/vcf_csv/{seq_id}_vcf.csv",
 				"output/variant_reports/{seq_id}_finished.txt",
 				"output/jointvcf_all_variants_filtered_genotype_roi_meta_nomt/{seq_id}_all_variants_filtered_genotype_roi_meta_nomt.vcf",
 				"output/qc_reports/multiqc/" + seq_id + ".html",
