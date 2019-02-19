@@ -553,7 +553,7 @@ rule create_gvcfs:
 		bam_file = "output/final_bam/{sample_name}_{sample_number}_final.bam",
 		bam_index= "output/final_bam/{sample_name}_{sample_number}_final.bai",
 		bed = "output/config/split_capture_bed/{chr}.bed",
-		ped = "output/config/{seq_id}.ped"
+		ped = "output/config/" + seq_id + ".ped"
 	output:
 		gvcf_file = temp("output/gvcfs/{sample_name}_{sample_number}_chr{chr}.g.vcf"),
 		index = temp("output/gvcfs/{sample_name}_{sample_number}_chr{chr}.g.vcf.idx")
@@ -596,7 +596,7 @@ rule genotype_gvcfs:
 	input:
 		db = "output/genomicdbs/{seq_id}_chr{chr}",
 		bed = "output/config/split_capture_bed/{chr}.bed",
-		ped = "output/config/{seq_id}.ped"
+		ped = "output/config/" + seq_id + ".ped"
 	output:
 		vcf = temp("output/jointvcf_per_chr/{seq_id}_chr{chr}.vcf"),
 		index = temp("output/jointvcf_per_chr/{seq_id}_chr{chr}.vcf.idx")
@@ -755,7 +755,7 @@ rule filter_non_snps:
 		"--filter-name 'MQ' "
 		"--filter-expression 'ReadPosRankSum <  {params.min_ReadPosRankSum}' "
 		"--filter-name 'ReadPosRankSum' "
-		"--filter-expression 'InbreedingCoeff != 'NaN' && InbreedingCoeff < {params.min_inbreeding_coeff}' "
+		"--filter-expression \"InbreedingCoeff != 'NaN' && InbreedingCoeff < {params.min_inbreeding_coeff}\" "
 		"--filter-name 'InbreedingCoeff' "
 
 # Combine the filtered SNPs and Indels into a single VCF
