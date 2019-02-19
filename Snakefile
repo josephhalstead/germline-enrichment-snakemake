@@ -752,7 +752,7 @@ rule filter_non_snps:
 		"--filter-expression 'ReadPosRankSum <  {params.min_ReadPosRankSum}' "
 		"--filter-name 'ReadPosRankSum' "
 		"--filter-expression 'InbreedingCoeff != 'NaN' && InbreedingCoeff < {params.min_inbreeding_coeff}' "
-		"--filter-name 'ReadPosRankSum' "
+		"--filter-name 'InbreedingCoeff' "
 
 # Combine the filtered SNPs and Indels into a single VCF
 rule combine_filtered_snps_and_indels:
