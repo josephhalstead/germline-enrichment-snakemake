@@ -553,6 +553,7 @@ rule create_gvcfs:
 		bam_file = "output/final_bam/{sample_name}_{sample_number}_final.bam",
 		bam_index= "output/final_bam/{sample_name}_{sample_number}_final.bai",
 		bed = "output/config/split_capture_bed/{chr}.bed",
+		ped = "output/config/{seq_id}.ped"
 	output:
 		gvcf_file = temp("output/gvcfs/{sample_name}_{sample_number}_chr{chr}.g.vcf"),
 		index = temp("output/gvcfs/{sample_name}_{sample_number}_chr{chr}.g.vcf.idx")
@@ -564,6 +565,7 @@ rule create_gvcfs:
 		"gatk --java-options '{params.java_options}' HaplotypeCaller -R {params.ref} "
 		"-I {input.bam_file} "
 		"--emit-ref-confidence GVCF "
+		"--pedigree {input.ped} "
 		"-O {output.gvcf_file} "
 		"-L {input.bed} "
 		"--interval-padding {params.padding}"
@@ -594,6 +596,7 @@ rule genotype_gvcfs:
 	input:
 		db = "output/genomicdbs/{seq_id}_chr{chr}",
 		bed = "output/config/split_capture_bed/{chr}.bed",
+		ped = "output/config/{seq_id}.ped"
 	output:
 		vcf = temp("output/jointvcf_per_chr/{seq_id}_chr{chr}.vcf"),
 		index = temp("output/jointvcf_per_chr/{seq_id}_chr{chr}.vcf.idx")
@@ -605,6 +608,7 @@ rule genotype_gvcfs:
 		"gatk --java-options '{params.java_options}'  GenotypeGVCFs -R {params.ref} "
 		"-V gendb://{input.db} "
 		"-G StandardAnnotation "
+		"--pedigree {input.ped} "
 		"-O {output.vcf} "
 		"-L {input.bed} "
 		"--interval-padding {params.padding} "
@@ -714,7 +718,7 @@ rule select_non_snps_for_filtering:
 		"--interval-padding {params.padding} "
 		"-O {output.vcf} "
 
-# Filter the non SNPs
+# Filter the non SNPs e.g. INDEL, MIXED, MNP, SYMBOLIC, NO_VARIATION)
 rule filter_non_snps:
 	input:
 		vcf = "output/jointvcf_indels/{seq_id}_all_chr_indels.vcf",
