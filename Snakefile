@@ -668,12 +668,12 @@ rule filter_snps:
 		ref = config["reference"],
 		padding = config["interval_padding_haplotype_caller"],
 		bed = config["capture_bed_file"],
-		min_qual = ["snp_min_qual"],
-		min_QD = ["snp_min_QD"],
-		max_FS = ["snp_max_FS"],
-		min_MQ = ["snp_min_MQ"],
-		min_MQRankSum = ["snp_min_MQRankSum"],
-		min_ReadPosRankSum = ["snp_min_ReadPosRankSum"],
+		min_qual = config["snp_min_qual"],
+		min_QD = config["snp_min_QD"],
+		max_FS = config["snp_max_FS"],
+		min_MQ = config["snp_min_MQ"],
+		min_MQRankSum = config["snp_min_MQRankSum"],
+		min_ReadPosRankSum = config["snp_min_ReadPosRankSum"],
 		java_options = config["gatk_variants_java_options"]
 	shell:
 		"gatk --java-options '{params.java_options}' "
