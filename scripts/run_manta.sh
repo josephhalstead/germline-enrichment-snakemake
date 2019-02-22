@@ -20,12 +20,15 @@ for i in $(cat $HIGH_COV_BAMS); do
 	if [ "$i" == "$BAM" ]
 	then
 
+		# make the manta config file
 		configManta.py \
 		--bam $BAM \
 		--referenceFasta $FASTA \
 		--exome \
 		--runDir $RUN_DIR \
 
+
+		# Run the workflow
 		"$RUN_DIR"/runWorkflow.py \
 		--quiet \
 		-m local \
@@ -35,7 +38,7 @@ for i in $(cat $HIGH_COV_BAMS); do
 		cp "$RUN_DIR"/results/variants/diploidSV.vcf.gz "$FINAL_DIR"/"$SAMPLE"_diploidSV.vcf.gz
 		cp "$RUN_DIR"/results/variants/diploidSV.vcf.gz.tbi "$FINAL_DIR"/"$SAMPLE"_diploidSV.vcf.gz.tbi
 
-		#rm -r "$RUN_DIR"
+		rm -r "$RUN_DIR"
 
 	fi
 

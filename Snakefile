@@ -1226,7 +1226,7 @@ rule low_coverage_bam_list:
 	shell:
 		"cat {input} > {output}"
 
-
+# Run manta
 rule run_manta:
 	input:
 		bam_file = "output/final_bam/{sample_name}_{sample_number}_final.bam",
@@ -1244,7 +1244,7 @@ rule run_manta:
 		"envs/python2.yaml"
 	shell:
 		"bash scripts/run_manta.sh "
-		"{input.high_bam_listh} "
+		"{input.high_bam_list} "
 		"{input.bam_file} "
 		"{params.ref} "
 		"output/manta/{wildcards.sample_name}_{wildcards.sample_number} "
@@ -1252,59 +1252,6 @@ rule run_manta:
 		"{wildcards.sample_name}_{wildcards.sample_number} "
 		"output/manta/ "
 		"{input.low_bam_list}"
-
-
-
-
-"""
-# Create the manta runWorkflow.py script
-rule run_manta_config:
-	input:
-		bam_file = "output/final_bam/{sample_name}_{sample_number}_final.bam"
-	output:
-		temp("output/manta/{sample_name}_{sample_number}/runWorkflow.py")
-	params:
-		ref = config["reference"],
-	conda:
-		"envs/python2.yaml"
-	group: "manta"
-	shell:
-		"configManta.py "
-		"--bam {input} "
-		"--referenceFasta {params.ref} "
-		"--exome "
-		"--runDir output/manta/{wildcards.sample_name}_{wildcards.sample_number}"
-
-# Execute the manta script
-rule run_manta:
-	input:
-		"output/manta/{sample_name}_{sample_number}/runWorkflow.py"
-	output:
-		"output/manta/{sample_name}_{sample_number}/results/variants/diploidSV.vcf.gz",
-		"output/manta/{sample_name}_{sample_number}/results/variants/diploidSV.vcf.gz.tbi",
-	conda:
-		"envs/python2.yaml"
-	threads:
-		config["manta_threads"]
-	group: "manta"
-	shell:
-		"{input} "
-		"--quiet "
-		"-m local "
-		"-j {threads}"
-
-# Just keep the Manta results and discard Manta working folder
-rule copy_manta_results:
-	input:
-		vcf = "output/manta/{sample_name}_{sample_number}/results/variants/diploidSV.vcf.gz",
-		index = "output/manta/{sample_name}_{sample_number}/results/variants/diploidSV.vcf.gz.tbi"
-	output:
-		vcf = "output/manta/{sample_name}_{sample_number}_diploidSV.vcf.gz",
-		index = "output/manta/{sample_name}_{sample_number}_diploidSV.vcf.gz.tbi"
-	shell:
-		"cp {input.vcf} {output.vcf} && cp {input.index} {output.index} && rm -r output/manta/{wildcards.sample_name}_{wildcards.sample_number}/"		
-"""
-
 
 # Create the bed file for CNV analysis
 rule make_cnv_bed:
