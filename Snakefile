@@ -1,14 +1,10 @@
 
 """
-
 Germline Enrichment Pipeline Using GATK4
 
-To DO:
+Run:
 
-Gaps calculations
--variants to text (VariantReporterSpark)
-trusight cancer specific
-
+snakemake -p
 
 """
 
@@ -20,7 +16,6 @@ from pathlib import Path
 #-----------------------------------------------------------------------------------------------------------------#
 
 # Which YAMl config to use
-
 config_location = "testvm.yaml"
 configfile: config_location
 
@@ -96,7 +91,7 @@ rule create_ped_file:
 	shell:
 		"python scripts/make_ped.py --config {input} > {output}"
 
-# Run the fastp program to generate a read quality report and trim read adapters and by quality
+# Run the fastp program to generate a read quality report and trim read adapters 
 rule fastp:
 	input:
 		fwd = "{sample_name}/{sample_name}_{sample_number}_{lane}_R1_001.fastq.gz",
@@ -455,7 +450,7 @@ rule verify_bam_id:
 		"--maxDepth 1000 "
 		"--precise "
 
-# Calculate per base coverage - replace with sambamba or mosdepth for speed?
+# Calculate per base coverage
 rule generate_per_base_coverage:
 	input:
 		bam = "output/final_bam/{sample_name}_{sample_number}_final.bam",
@@ -570,7 +565,6 @@ rule create_gvcfs:
 		"-L {input.bed} "
 		"--interval-padding {params.padding}"
 
-
 # Consolidate all samples into a genomics db for joint genotyping
 rule create_genomics_db:
 	input:
@@ -589,7 +583,6 @@ rule create_genomics_db:
 		"--genomicsdb-workspace-path {output} "
 		"-L {input.bed} "
 		"--interval-padding {params.padding}"
-
 
 # Genotype the gvcfs and produce a joint vcf
 rule genotype_gvcfs:
@@ -775,7 +768,7 @@ rule combine_filtered_snps_and_indels:
 		"-I {input.indels} "
 		"-O {output.vcf}"		
 
-# Filter on genotype quality
+# Filter on genotype depth - just mark genotypes with low depth
 rule filter_genotypes:
 	input:
 		vcf = "output/jointvcf_all_variants_filtered/{seq_id}_all_variants_filtered.vcf",
@@ -887,6 +880,7 @@ rule annotate_vep:
 		"--custom {params.ccr_bed},ccrs,bed,overlap,0 "
 		"--custom {params.spliceai},SpliceAI,vcf,exact,0,DS_AG,DS_AL,DS_DG,DS_DL,SYMBOL "
 
+# Compress and index the VEP annotated vcf
 rule compress_and_index_vep:
 	input:
 		"output/jointvcf_all_variants_filtered_genotype_roi_norm_vep/{seq_id}_all_variants_filtered_genotype_roi_norm_vep.vcf"
@@ -969,7 +963,7 @@ rule add_meta_to_vcf:
 		 grep -v '^##' {input.vcf} >> {output}
 		"""
 
-# Exclude Mitochrondial variants for inclusion in variant database
+# Exclude Mitochrondial variants for inclusion in the variant database
 rule create_vcf_without_mt:
 	input:
 		"output/jointvcf_all_variants_filtered_genotype_roi_meta/{seq_id}_all_variants_filtered_genotype_roi_meta.vcf"
@@ -979,7 +973,7 @@ rule create_vcf_without_mt:
 		"awk '$1 !~ /^MT/ {{ print $0 }}' {input} > {output}"
 
 
-# Check the final vcf in valid
+# Check the final vcf is valid
 rule validate_vcf:
 	input:
 		vcf = "output/jointvcf_all_variants_filtered_genotype_roi_norm_vep/{seq_id}_all_variants_filtered_genotype_roi_norm_vep.vcf.gz",
@@ -999,7 +993,7 @@ rule validate_vcf:
 # Final QC checks
 #-----------------------------------------------------------------------------------------------------------------#
 
-# Evaluate variant calling - need sex and rawSequenceQuality inputs
+# Evaluate variant calling
 rule variant_evaluation:
 	input:
 		"output/jointvcf_all_variants_filtered_genotype/{seq_id}_all_variants_filtered_genotype.vcf.gz"
@@ -1163,7 +1157,6 @@ rule gather_qc_metrics:
 
 		"""
 
-
 # Relatedness Testing
 rule relatedness_test:
 	input:
@@ -1213,6 +1206,57 @@ rule multiqc:
 # Structural Variant and CNV Calling
 #-----------------------------------------------------------------------------------------------------------------#
 
+	
+
+# Collect all the high coverage bams and put them in a single file.
+rule high_coverage_bam_list:
+	input:
+		expand("output/qc_reports/high_coverage_bams/{sample_name}_{sample_number}_high_coverage.txt", zip, sample_name=sample_names, sample_number=sample_numbers)
+	output:
+		"output/qc_reports/final_high_coverage_bams/high_coverage_bams.txt"
+	shell:
+		"cat {input} > {output}"
+
+# Collect all the low coverage bams and put them in a single file.
+rule low_coverage_bam_list:
+	input:
+		expand("output/qc_reports/low_coverage_bams/{sample_name}_{sample_number}_low_coverage.txt", zip, sample_name=sample_names, sample_number=sample_numbers)
+	output:
+		"output/qc_reports/final_low_coverage_bams/low_coverage_bams.txt"
+	shell:
+		"cat {input} > {output}"
+
+
+rule run_manta:
+	input:
+		bam_file = "output/final_bam/{sample_name}_{sample_number}_final.bam",
+		bam_index = "output/final_bam/{sample_name}_{sample_number}_final.bai",
+		high_bam_list = "output/qc_reports/final_high_coverage_bams/high_coverage_bams.txt",
+		low_bam_list = "output/qc_reports/final_low_coverage_bams/low_coverage_bams.txt"
+	output:
+		vcf = "output/manta/{sample_name}_{sample_number}_diploidSV.vcf.gz",
+		index = "output/manta/{sample_name}_{sample_number}_diploidSV.vcf.gz.tbi"
+	params:
+		ref = config["reference"]
+	threads:
+		config["manta_threads"]
+	conda:
+		"envs/python2.yaml"
+	shell:
+		"bash scripts/run_manta.sh "
+		"{input.high_bam_listh} "
+		"{input.bam_file} "
+		"{params.ref} "
+		"output/manta/{wildcards.sample_name}_{wildcards.sample_number} "
+		"{threads} "
+		"{wildcards.sample_name}_{wildcards.sample_number} "
+		"output/manta/ "
+		"{input.low_bam_list}"
+
+
+
+
+"""
 # Create the manta runWorkflow.py script
 rule run_manta_config:
 	input:
@@ -1258,25 +1302,9 @@ rule copy_manta_results:
 		vcf = "output/manta/{sample_name}_{sample_number}_diploidSV.vcf.gz",
 		index = "output/manta/{sample_name}_{sample_number}_diploidSV.vcf.gz.tbi"
 	shell:
-		"cp {input.vcf} {output.vcf} && cp {input.index} {output.index} && rm -r output/manta/{wildcards.sample_name}_{wildcards.sample_number}/"			
+		"cp {input.vcf} {output.vcf} && cp {input.index} {output.index} && rm -r output/manta/{wildcards.sample_name}_{wildcards.sample_number}/"		
+"""
 
-# Collect all the high coverage bams and put them in a single file.
-rule high_coverage_bam_list:
-	input:
-		expand("output/qc_reports/high_coverage_bams/{sample_name}_{sample_number}_high_coverage.txt", zip, sample_name=sample_names, sample_number=sample_numbers)
-	output:
-		"output/qc_reports/final_high_coverage_bams/high_coverage_bams.txt"
-	shell:
-		"cat {input} > {output}"
-
-# Collect all the low coverage bams and put them in a single file.
-rule low_coverage_bam_list:
-	input:
-		expand("output/qc_reports/low_coverage_bams/{sample_name}_{sample_number}_low_coverage.txt", zip, sample_name=sample_names, sample_number=sample_numbers)
-	output:
-		"output/qc_reports/final_low_coverage_bams/low_coverage_bams.txt"
-	shell:
-		"cat {input} > {output}"
 
 # Create the bed file for CNV analysis
 rule make_cnv_bed:
@@ -1309,7 +1337,6 @@ rule change_bam_indexes:
 		bam_index = temp("output/final_bam/{sample_name}_{sample_number}_final.bam.bai")
 	shell:
 		"cp {input.bam_index} {output.bam_index}"
-
 
 # Run the R ExomeDepth program - create empty files for samples with low depth
 rule call_cnvs:
@@ -1418,7 +1445,6 @@ if config["perform_bqsr"] == True:
 	rule final:
 		input:
 			"output/validated_vcf/{seq_id}.validated",
-			expand("output/manta/{sample_name}_{sample_number}_diploidSV.vcf.gz", zip, sample_name=sample_names, sample_number=sample_numbers),
 			"output/variant_reports/{seq_id}_finished.txt",
 			"output/jointvcf_all_variants_filtered_genotype_roi_meta_nomt/{seq_id}_all_variants_filtered_genotype_roi_meta_nomt.vcf",
 			expand("output/qc_reports/bqsr/{sample_name}_{sample_number}_bqsr_covariation.csv", zip, sample_name=sample_names, sample_number=sample_numbers),
@@ -1455,7 +1481,6 @@ else:
 		rule final:
 			input:
 				"output/validated_vcf/{seq_id}.validated",
-				expand("output/manta/{sample_name}_{sample_number}_diploidSV.vcf.gz", zip, sample_name=sample_names, sample_number=sample_numbers),
 				"output/variant_reports/{seq_id}_finished.txt",
 				"output/jointvcf_all_variants_filtered_genotype_roi_meta_nomt/{seq_id}_all_variants_filtered_genotype_roi_meta_nomt.vcf",
 				"output/qc_reports/multiqc/" + seq_id + ".html",

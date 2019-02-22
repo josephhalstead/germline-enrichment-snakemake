@@ -42,7 +42,6 @@ if (sum(exomeDepthMatricsDf$Correlation < 0.98) > 0) {
 # add average depth for each sample
 for (s in sampleId) {
 	
-    print (s)
 
     exomeDepthCoverage <- paste0(depth_folder,s,"_DepthOfCoverage.sample_summary")
     exomeDepthCoverageDf <- read.table(exomeDepthCoverage, stringsAsFactors = F, header = T, fill = T)
