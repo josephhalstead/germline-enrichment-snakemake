@@ -1206,8 +1206,6 @@ rule multiqc:
 # Structural Variant and CNV Calling
 #-----------------------------------------------------------------------------------------------------------------#
 
-	
-
 # Collect all the high coverage bams and put them in a single file.
 rule high_coverage_bam_list:
 	input:
@@ -1333,18 +1331,19 @@ if panel == "IlluminaTruSightCancer":
 		output:
 			"output/combined_sv_report/" + seq_id + "_cnvReport.csv"
 		params:
-			depth_folder = "output/depth/depth_of_coverage/",
-			exome_depth_folder = "output/exome_depth/",
-			manta_folder = "output/manta/"			
+			coverage_dir = "output/depth/depth_of_coverage/",
+			exome_dir = "output/exome_depth/",
+			manta_dir = "output/manta/",
+			run = seq_id			
 		shell:
-			"Rscript --vanilla scripts/generateCnvReport.R "
-			"{input.bed} "
-			"{input.exome_depth_metrics} "
-			"{input.high_coverage_bams} "
-			"{params.depth_folder} "
-			"{params.exome_depth_folder} "
-			"{params.manta_folder} "
-			"{output} "
+			"python generateCNVReport.py "
+			"--run_id {params.seq_id} "
+			"--output {output} "
+			"--bed {input.bed} "
+			"--exome_metrics {params.exome_depth_metrics} "
+			"--manta_dir {params.manta_folder} "
+			"--exome_dir {params.exome_dir} "
+			"--coverage_dir {params.depth_dir} "
 
 	# Create custom coverage data for each sample
 	rule get_custom_coverage:
