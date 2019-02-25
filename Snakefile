@@ -1336,14 +1336,14 @@ if panel == "IlluminaTruSightCancer":
 			manta_dir = "output/manta/",
 			run = seq_id			
 		shell:
-			"python generateCNVReport.py "
-			"--run_id {params.seq_id} "
+			"python scripts/generateCNVReport.py "
+			"--runid {params.run} "
 			"--output {output} "
 			"--bed {input.bed} "
-			"--exome_metrics {params.exome_depth_metrics} "
-			"--manta_dir {params.manta_folder} "
+			"--exome_metrics {input.exome_depth_metrics} "
+			"--manta_dir {params.manta_dir} "
 			"--exome_dir {params.exome_dir} "
-			"--coverage_dir {params.depth_dir} "
+			"--coverage_dir {params.coverage_dir} "
 
 	# Create custom coverage data for each sample
 	rule get_custom_coverage:

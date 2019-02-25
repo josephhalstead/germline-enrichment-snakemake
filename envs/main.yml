@@ -20,6 +20,7 @@ dependencies:
 - multiqc = 1.6
 - vt = 0.57721
 - ensembl-vep = 94.5
+- scikit-allel = 1.2.0
 - r-essentials = 3.5.1
 - r-ggplot2 = 3.1.0
 - r-gplots = 3.0.1
@@ -30,3 +31,5 @@ dependencies:
 - bioconductor-rsamtools = 1.32.3
 - bioconductor-genomicranges = 1.32.7
 - bioconductor-variantannotation = 1.26.1
+- pip:
+  - pandas== 0.23.4
