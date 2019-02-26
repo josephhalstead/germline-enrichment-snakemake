@@ -45,7 +45,7 @@ hotspot_bed_dir:
 coverage_calculator:
   /share/data/diagnostics/apps/CoverageCalculatorPy-1.0.0/CoverageCalculatorPy.py
 germline_hotspots:
-  /home/transfer/app_development/germline-enrichment-snakemakeconfigs/GermlineEnrichment_Hotspots.bed
+  /home/transfer/app_development/germline-enrichment-snakemake/configs/GermlineEnrichment_Hotspots.bed
 refseq:
   /share/data/db/human/refseq/ref_GRCh37.p13_top_level_canonical_b37_sorted.gff3.gz
 filter_config:
