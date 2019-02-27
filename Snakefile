@@ -1391,7 +1391,7 @@ if config["perform_bqsr"] == True:
 	rule final:
 		input:
 			"output/validated_vcf/{seq_id}.validated",
-			"output/depth/metrics/" + seq_id + "_{sample_name}_{sample_number}_Gaps.bed",
+			expand("output/depth/metrics/" + seq_id + "_{sample_name}_{sample_number}_Gaps.bed",
 			"output/variant_reports/{seq_id}_finished.txt",
 			"output/jointvcf_all_variants_filtered_genotype_roi_meta_nomt/{seq_id}_all_variants_filtered_genotype_roi_meta_nomt.vcf",
 			expand("output/qc_reports/bqsr/{sample_name}_{sample_number}_bqsr_covariation.csv", zip, sample_name=sample_names, sample_number=sample_numbers),
@@ -1411,7 +1411,7 @@ else:
 			input:
 				"output/validated_vcf/{seq_id}.validated",
 				expand("output/manta/{sample_name}_{sample_number}_diploidSV.vcf.gz", zip, sample_name=sample_names, sample_number=sample_numbers),
-				"output/depth/metrics/" + seq_id + "_{sample_name}_{sample_number}_Gaps.bed",
+				expand("output/depth/metrics/" + seq_id + "_{sample_name}_{sample_number}_Gaps.bed",zip, sample_name=sample_names, sample_number=sample_numbers),
 				"output/depth/hotspot_coverage/custom.finished",
 				"output/variant_reports/{seq_id}_finished.txt",
 				"output/combined_sv_report/" + seq_id + "_cnvReport.csv",
@@ -1430,7 +1430,7 @@ else:
 			input:
 				"output/validated_vcf/{seq_id}.validated",
 				"output/variant_reports/{seq_id}_finished.txt",
-				"output/depth/metrics/" + seq_id + "_{sample_name}_{sample_number}_Gaps.bed",
+				expand("output/depth/metrics/" + seq_id + "_{sample_name}_{sample_number}_Gaps.bed",zip, sample_name=sample_names, sample_number=sample_numbers),
 				"output/jointvcf_all_variants_filtered_genotype_roi_meta_nomt/{seq_id}_all_variants_filtered_genotype_roi_meta_nomt.vcf",
 				"output/qc_reports/multiqc/" + seq_id + ".html",
 				"output/qc_reports/combined_qc/" + seq_id + "_combined_QC.txt"
