@@ -1391,7 +1391,7 @@ if config["perform_bqsr"] == True:
 	rule final:
 		input:
 			"output/validated_vcf/{seq_id}.validated",
-			expand("output/depth/metrics/" + seq_id + "_{sample_name}_{sample_number}_Gaps.bed",
+			expand("output/depth/metrics/" + seq_id + "_{sample_name}_{sample_number}_Gaps.bed", zip, sample_name=sample_names, sample_number=sample_numbers),
 			"output/variant_reports/{seq_id}_finished.txt",
 			"output/jointvcf_all_variants_filtered_genotype_roi_meta_nomt/{seq_id}_all_variants_filtered_genotype_roi_meta_nomt.vcf",
 			expand("output/qc_reports/bqsr/{sample_name}_{sample_number}_bqsr_covariation.csv", zip, sample_name=sample_names, sample_number=sample_numbers),
