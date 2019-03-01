@@ -22,7 +22,8 @@ to_keep_consequences:
                'splice_region_variant': 'splice_region_variant'
                'incomplete_terminal_codon_variant': 'incomplete_terminal_codon_variant'
                'start_retained_variant': 'start_retained_variant'
-               'stop_retained_variant': 'stop_retained_variant'
+               'stop_retained_variant': 'stop_retained_variant',
+               'synonymous_variant': 'synonymous_variant'
                
 
 # VEP consequences in order of severity

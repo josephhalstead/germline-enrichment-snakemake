@@ -932,7 +932,6 @@ rule create_variant_reports:
 		"--panelapp "
 		"--local-panel-app-dump {params.local_panel_app_dump} "
 		"--spliceai "
-		"--smart-synonymous "
 		"--gnomad-constraint-scores "
 		"--worksheet {wildcards.seq_id} "
 		"--results-dir output/variant_reports/ "
