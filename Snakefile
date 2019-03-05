@@ -745,7 +745,7 @@ rule filter_non_snps:
 		"--filter-expression 'FS >  {params.max_FS}' "
 		"--filter-name 'FS' "
 		"--filter-expression 'SOR >  {params.max_SOR}' "
-		"--filter-name 'MQ' "
+		"--filter-name 'SOR' "
 		"--filter-expression 'ReadPosRankSum <  {params.min_ReadPosRankSum}' "
 		"--filter-name 'ReadPosRankSum' "
 		"--filter-expression \"InbreedingCoeff != 'NaN' && InbreedingCoeff < {params.min_inbreeding_coeff}\" "
@@ -816,8 +816,7 @@ rule filter_by_roi:
 		bed = config["capture_bed_file"],
 		ref = config["reference"]
 	shell:
-		"bcftools view -R {params.bed} {input.vcf} | "
-		"vt normalize -r {params.ref} - > {output} "
+		"bcftools view -R {params.bed} {input.vcf} > {output} "
 
 # Use vt to split multiallelics and normalise variants
 rule decompose_and_normalise:
