@@ -233,7 +233,7 @@ rule identify_realignment_regions:
 		temp("output/merged_bams/{sample_name}_{sample_number}_realign.intervals")
 	params:
 		ref = config["reference"],
-		bed = config["capture_bed_file"]
+		bed = config["capture_bed_file"],
 		known_sites_indels = config["indels_1k_vcf"],
 		known_sites_gold = config["gold_standard_indels"],
 		java_options = config['gatk_hc_java_options'],
@@ -266,7 +266,7 @@ rule realign_indels:
 		known_sites_indels = config["indels_1k_vcf"],
 		known_sites_gold = config["gold_standard_indels"],
 		java_options = config['gatk_hc_java_options'],
-		java_home = config["java_home"],
+		java_home = config["java_home"]
 	shell:
 		"export JAVA_HOME={params.java_home}; gatk3 "
 		"{params.java_options} "
@@ -277,7 +277,7 @@ rule realign_indels:
 		"-targetIntervals {input.intervals} "
 		"-I {input.bam} "
 		"-o {output.bam} "
-		"-dt NONE 
+		"-dt NONE "
 
 
 if config["perform_bqsr"] == True:
@@ -313,7 +313,7 @@ if config["perform_bqsr"] == True:
 	rule apply_base_quality_report:
 		input:
 			bam = "output/realigned_bam/{sample_name}_{sample_number}_realigned.bam",
-			index = "output/realigned_bam/{sample_name}_{sample_number}_realigned.bai"
+			index = "output/realigned_bam/{sample_name}_{sample_number}_realigned.bai",
 			bqsr_report = "output/bqsr_tables/{sample_name}_{sample_number}_recal_data.table"
 		output:
 			bam_file = "output/final_bam/{sample_name}_{sample_number}_final.bam",
@@ -1179,6 +1179,7 @@ rule gather_qc_metrics:
 		echo -e "TotalReads\tRawSequenceQuality\tTotalTargetUsableBases\tDuplicationRate\tPctSelectedBases\tPctTargetBasesCt\tMeanOnTargetCoverage\tSex\tEstimatedContamination\tMeanInsertSize\tSDInsertSize\tPercentMapped\tAtDropout\tGcDropout" > {output.summary}
 		echo -e "$totalReads\t$rawSequenceQuality\t$totalTargetedUsableBases\t$duplicationRate\t$pctSelectedBases\t$pctTargetBasesCt\t$meanOnTargetCoverage\t$calcSex\t$freemix\t$meanInsertSize\t$sdInsertSize\t$pctPfReadsAligned\t$atDropout\t$gcDropout" >> {output.summary}
 
+		# Create high coverage bam list
 		if [ $(echo "$meanOnTargetCoverage" | awk '{{if ($1 > 20) print "true"; else print "false"}}') = true ]; then
 			echo {input.bam} > {output.high_coverage} 
 		else
@@ -1186,7 +1187,8 @@ rule gather_qc_metrics:
 			touch {output.high_coverage} 
 
 		fi
-
+		
+		# Create low coverage bam list
 		if [ $(echo "$meanOnTargetCoverage" | awk '{{if ($1 < 20) print "true"; else print "false"}}') = true ]; then
 			echo {input.bam} > {output.low_coverage} 
 		else

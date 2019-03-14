@@ -13,7 +13,8 @@ PREFIX=$5
 DICT=$6
 LOW_BAM_LIST=$7
 
-if [[ -e $BAM_LIST ]] && [[ $(wc -l $BAM_LIST | awk '{print $1}') -gt 2 ]]; then
+# If we have at least four bams with high coverage (more than 20x)
+if [[ -e $BAM_LIST ]] && [[ $(wc -l $BAM_LIST | awk '{print $1}') -gt 4 ]]; then
 
 
 	 #call CNVs using read depth
@@ -49,21 +50,20 @@ if [[ -e $BAM_LIST ]] && [[ $(wc -l $BAM_LIST | awk '{print $1}') -gt 2 ]]; then
 
     done
 
+    # Get rid of intermediate files
     rm $PREFIX/*_cnv.txt
 
     # Make empty files for low coverage - snakemake needs this
     for i in $(cat $LOW_BAM_LIST); do
 
-        
         sampleId=$(basename ${i%.*})
-
 
         echo 'NO CNVS' > "$PREFIX"/"$sampleId"_cnv_fixed.vcf.gz
         echo 'NO CNVS' > "$PREFIX"/"$sampleId"_cnv_fixed.vcf.gz.tbi
 
     done
 
-
+# If we do not have more than 4 bams with high coverage
 else
 
     # create emptry files for all samples
@@ -76,8 +76,8 @@ else
 
     done
 
-
-     for i in $(cat $BAM_LIST); do
+    # and for high coverage bams
+    for i in $(cat $BAM_LIST); do
 
         sampleId=$(basename ${i%.*})
 
