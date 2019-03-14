@@ -92,7 +92,7 @@ y_linked_male_gnomadg: 0.0075
 y_linked_male_gnomade: 0.001
 y_linked_male_ac: 6
 
-dom_autosomal_gnomadg: 
+dom_autosomal_gnomadg: 0.0075
 dom_autosomal_gnomade: 0.001
 dom_autosomal_ac: 4
 
