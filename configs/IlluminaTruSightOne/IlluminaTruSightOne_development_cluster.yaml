@@ -56,7 +56,7 @@ germline_variant_filter:
 # Alternate pipeline execution
 
 perform_bqsr:
-  false
+  true
 
 # Variant Filtering Options
 

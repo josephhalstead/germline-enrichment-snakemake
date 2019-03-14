@@ -542,69 +542,63 @@ rule split_bed_by_chromosome:
 	shell:
 		"for chr in {params.chromosomes}; do bedextract $chr {input} > output/config/split_capture_bed/$chr.bed; done"
 
+
 # Create GVCF using Haplotype Caller for each sample chromosome combination
 rule create_gvcfs:
-	input:
-		bam_file = "output/final_bam/{sample_name}_{sample_number}_final.bam",
-		bam_index= "output/final_bam/{sample_name}_{sample_number}_final.bai",
-		bed = "output/config/split_capture_bed/{chr}.bed",
-		ped = "output/config/" + seq_id + ".ped"
-	output:
-		gvcf_file = temp("output/gvcfs/{sample_name}_{sample_number}_chr{chr}.g.vcf"),
-		index = temp("output/gvcfs/{sample_name}_{sample_number}_chr{chr}.g.vcf.idx")
-	params:
-		ref = config["reference"],
-		padding = config['interval_padding_haplotype_caller'],
-		java_options = config['gatk_hc_java_options']
-	shell:
-		"gatk --java-options '{params.java_options}' HaplotypeCaller -R {params.ref} "
-		"-I {input.bam_file} "
-		"--emit-ref-confidence GVCF "
-		"--pedigree {input.ped} "
-		"-O {output.gvcf_file} "
-		"-L {input.bed} "
-		"--interval-padding {params.padding}"
-
-# Consolidate all samples into a genomics db for joint genotyping
-rule create_genomics_db:
-	input:
-		gvcfs = expand("output/gvcfs/{sample_name}_{sample_number}_chr{{chr}}.g.vcf" , zip, sample_name=sample_names, sample_number=sample_numbers),
-		index = expand("output/gvcfs/{sample_name}_{sample_number}_chr{{chr}}.g.vcf.idx", zip, sample_name=sample_names, sample_number=sample_numbers),
-		bed = "output/config/split_capture_bed/{chr}.bed"
-	output:
-		temp(directory("output/genomicdbs/{seq_id}_chr{chr}"))
-	params:
-		files = lambda wildcards, input: " -V ".join(input.gvcfs),
-		java_options = config["gatk_genomics_db_java_options"],
-		padding = config['interval_padding_haplotype_caller']
-	shell:
-		"gatk --java-options '{params.java_options}' "
-		" GenomicsDBImport -V {params.files} "
-		"--genomicsdb-workspace-path {output} "
-		"-L {input.bed} "
-		"--interval-padding {params.padding}"
+		input:
+				bam_file = "output/final_bam/{sample_name}_{sample_number}_final.bam",
+				bam_index= "output/final_bam/{sample_name}_{sample_number}_final.bai",
+				bed = "output/config/split_capture_bed/{chr}.bed",
+				ped = "output/config/" + seq_id + ".ped"
+		output:
+				gvcf_file = temp("output/gvcfs/{sample_name}_{sample_number}_chr{chr}.g.vcf"),
+				index = temp("output/gvcfs/{sample_name}_{sample_number}_chr{chr}.g.vcf.idx")
+		params:
+				ref = config["reference"],
+				padding = config['interval_padding_haplotype_caller'],
+				java_options = config['gatk_hc_java_options'],
+				java_home = config["java_home"]
+		shell:
+				"export JAVA_HOME={params.java_home}; gatk3 "
+				"{params.java_options} "
+				"-T HaplotypeCaller "
+				"-R {params.ref} "
+				"-I {input.bam_file} "
+				"-L {input.bed} "
+				"-ip {params.padding} "
+				"-o {output.gvcf_file} "
+				"-ped {input.ped} "
+				"--genotyping_mode DISCOVERY "
+				"--emitRefConfidence GVCF "
+				"-dt NONE "
 
 # Genotype the gvcfs and produce a joint vcf
 rule genotype_gvcfs:
-	input:
-		db = "output/genomicdbs/{seq_id}_chr{chr}",
-		bed = "output/config/split_capture_bed/{chr}.bed",
-		ped = "output/config/" + seq_id + ".ped"
-	output:
-		vcf = temp("output/jointvcf_per_chr/{seq_id}_chr{chr}.vcf"),
-		index = temp("output/jointvcf_per_chr/{seq_id}_chr{chr}.vcf.idx")
-	params:
-		ref = config["reference"],
-		java_options = config['gatk_hc_java_options'],
-		padding = config['interval_padding_haplotype_caller']
-	shell:
-		"gatk --java-options '{params.java_options}'  GenotypeGVCFs -R {params.ref} "
-		"-V gendb://{input.db} "
-		"-G StandardAnnotation "
-		"--pedigree {input.ped} "
-		"-O {output.vcf} "
-		"-L {input.bed} "
-		"--interval-padding {params.padding} "
+		input:
+				gvcfs = expand("output/gvcfs/{sample_name}_{sample_number}_chr{{chr}}.g.vcf" , zip, sample_name=sample_names, sample_number=sample_numbers),
+				index = expand("output/gvcfs/{sample_name}_{sample_number}_chr{{chr}}.g.vcf.idx", zip, sample_name=sample_names, sample_number=sample_numbers),
+				bed = "output/config/split_capture_bed/{chr}.bed",
+				ped = "output/config/" + seq_id + ".ped"
+		output:
+				vcf = temp("output/jointvcf_per_chr/{seq_id}_chr{chr}.vcf"),
+				index = temp("output/jointvcf_per_chr/{seq_id}_chr{chr}.vcf.idx")
+		params:
+				ref = config["reference"],
+				java_options = config['gatk_hc_java_options'],
+				padding = config['interval_padding_haplotype_caller'],
+				files = lambda wildcards, input: " -V ".join(input.gvcfs),
+				java_home = config["java_home"]
+		shell:
+				"export JAVA_HOME={params.java_home}; gatk3 "
+				"{params.java_options} "
+				"-T GenotypeGVCFs "
+				"-R {params.ref} "
+				"-V {params.files} "
+				"-L {input.bed} "
+				"-ip {params.padding} "
+				"-o {output.vcf} "
+				"-ped {input.ped} "
+				"-dt NONE "
 
 # Combine the chromsome vcfs into one final vcf with all samples and all chromosomes
 rule collect_vcfs:
@@ -1036,30 +1030,30 @@ rule calculate_sex:
 
 		if [ $(wc -l {output.y_bed} | cut -d' ' -f1) -gt 0 ] && [ $(awk -v meanOnTargetCoverage="$meanOnTargetCoverage" 'BEGIN{{printf "%3.0f", meanOnTargetCoverage}}') -gt 10 ]; then
 
-		    #calc Y coverage
-		    gatk3 \
-		    -T DepthOfCoverage \
-		    -R {params.ref} \
-		    -o {params.output_name} \
-		    --omitDepthOutputAtEachBase \
-		    --omitIntervalStatistics \
-		    --omitLocusTable \
-		    -L {output.y_bed} \
-		    -XL Y:10000-2649520 \
-		    -XL Y:59034049-59363566 \
-		    -I {input.bam} \
-		    --countType COUNT_FRAGMENTS \
-		    --minMappingQuality 20 \
-		    -rf MappingQualityUnavailable \
-		    -dt NONE
+			#calc Y coverage
+			gatk3 \
+			-T DepthOfCoverage \
+			-R {params.ref} \
+			-o {params.output_name} \
+			--omitDepthOutputAtEachBase \
+			--omitIntervalStatistics \
+			--omitLocusTable \
+			-L {output.y_bed} \
+			-XL Y:10000-2649520 \
+			-XL Y:59034049-59363566 \
+			-I {input.bam} \
+			--countType COUNT_FRAGMENTS \
+			--minMappingQuality 20 \
+			-rf MappingQualityUnavailable \
+			-dt NONE
 
-		    #extract Y mean coverage
-		    meanYCov=$(head -n2 {output.y_cov} | tail -n1 | cut -s -f3)
-		    calcSex=$(awk -v meanOnTargetCoverage="$meanOnTargetCoverage" -v meanYCov="$meanYCov" 'BEGIN {{if (meanYCov > 10 && (meanYCov / meanOnTargetCoverage) > 0.1){{print "MALE"}} else if (meanYCov < 10 && (meanYCov / meanOnTargetCoverage) < 0.1) {{print "FEMALE" }} else {{print "UNKNOWN"}} }}')
+			#extract Y mean coverage
+			meanYCov=$(head -n2 {output.y_cov} | tail -n1 | cut -s -f3)
+			calcSex=$(awk -v meanOnTargetCoverage="$meanOnTargetCoverage" -v meanYCov="$meanYCov" 'BEGIN {{if (meanYCov > 10 && (meanYCov / meanOnTargetCoverage) > 0.1){{print "MALE"}} else if (meanYCov < 10 && (meanYCov / meanOnTargetCoverage) < 0.1) {{print "FEMALE" }} else {{print "UNKNOWN"}} }}')
 
 		else
-		    calcSex="UNKNOWN"
-		    touch {output.y_cov}
+			calcSex="UNKNOWN"
+			touch {output.y_cov}
 		fi
 
 

@@ -84,24 +84,24 @@ reccessive_autosomal_gnomadg: 0.01
 reccessive_autosomal_gnomade: 0.01
 reccessive_autosomal_ac: 4
 
-x_linked_male_gnomadg: 0.001
-x_linked_male_gnomade: 0.0075
+x_linked_male_gnomadg: 0.0075
+x_linked_male_gnomade: 0.001
 x_linked_male_ac: 6
 
-y_linked_male_gnomadg: 0.001
-y_linked_male_gnomade: 0.0075
+y_linked_male_gnomadg: 0.0075
+y_linked_male_gnomade: 0.001
 y_linked_male_ac: 6
 
-dom_autosomal_gnomadg: 0.001
-dom_autosomal_gnomade: 0.0075
+dom_autosomal_gnomadg: 
+dom_autosomal_gnomade: 0.001
 dom_autosomal_ac: 4
 
-dom_x_female_gnomadg: 0.001
-dom_x_female_gnomade: 0.0075
+dom_x_female_gnomadg: 0.0075
+dom_x_female_gnomade: 0.001
 dom_x_female_ac: 4
 
-de_novo_gnomadg: 0.001
-de_novo_gnomade: 0.0075
+de_novo_gnomadg: 0.0075
+de_novo_gnomade: 0.001
 de_novo_ac: 4
 
 
