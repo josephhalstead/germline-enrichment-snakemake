@@ -224,14 +224,69 @@ rule merge_and_remove_duplicates:
 		"VALIDATION_STRINGENCY=SILENT "
 		"TMP_DIR={params.temp} "
 
+# identify regions requiring indel realignment
+rule identify_realignment_regions:
+	input:
+		bam = "output/merged_bams/{sample_name}_{sample_number}_merged_nodups.bam",
+		index = "output/merged_bams/{sample_name}_{sample_number}_merged_nodups.bai"
+	output:
+		temp("output/merged_bams/{sample_name}_{sample_number}_realign.intervals")
+	params:
+		ref = config["reference"],
+		bed = config["capture_bed_file"]
+		known_sites_indels = config["indels_1k_vcf"],
+		known_sites_gold = config["gold_standard_indels"],
+		java_options = config['gatk_hc_java_options'],
+		java_home = config["java_home"],
+		padding = config["interval_padding_bqsr"]
+	shell:
+		"export JAVA_HOME={params.java_home}; gatk3 "
+		"{params.java_options} "
+		"-T RealignerTargetCreator  "
+		"-R {params.ref} "
+		"-known {params.known_sites_indels} "
+		"-known {params.known_sites_gold} "
+		"-I {input.bam} "
+		"-o {output} "
+		"-L {params.bed} "
+		"-ip {params.padding} "
+		"-dt NONE "
+
+# Realign around indels
+rule realign_indels:
+	input:
+		bam = "output/merged_bams/{sample_name}_{sample_number}_merged_nodups.bam",
+		index = "output/merged_bams/{sample_name}_{sample_number}_merged_nodups.bai",
+		intervals = "output/merged_bams/{sample_name}_{sample_number}_realign.intervals"
+	output:
+		bam = temp("output/realigned_bam/{sample_name}_{sample_number}_realigned.bam"),
+		index = temp("output/realigned_bam/{sample_name}_{sample_number}_realigned.bai")
+	params:
+		ref = config["reference"],
+		known_sites_indels = config["indels_1k_vcf"],
+		known_sites_gold = config["gold_standard_indels"],
+		java_options = config['gatk_hc_java_options'],
+		java_home = config["java_home"],
+	shell:
+		"export JAVA_HOME={params.java_home}; gatk3 "
+		"{params.java_options} "
+		"-T IndelRealigner "
+		"-R {params.ref} "
+		"-known {params.known_sites_indels} "
+		"-known {params.known_sites_gold} "
+		"-targetIntervals {input.intervals} "
+		"-I {input.bam} "
+		"-o {output.bam} "
+		"-dt NONE 
+
 
 if config["perform_bqsr"] == True:
 
 	# Create the BQSR report to later apply
 	rule create_base_quality_report:
 		input:
-			bam = "output/merged_bams/{sample_name}_{sample_number}_merged_nodups.bam",
-			index = "output/merged_bams/{sample_name}_{sample_number}_merged_nodups.bai",
+			bam = "output/realigned_bam/{sample_name}_{sample_number}_realigned.bam",
+			index = "output/realigned_bam/{sample_name}_{sample_number}_realigned.bai"
 		output:
 			"output/bqsr_tables/{sample_name}_{sample_number}_recal_data.table"
 		params:
@@ -257,8 +312,8 @@ if config["perform_bqsr"] == True:
 	# Apply BQSR Report
 	rule apply_base_quality_report:
 		input:
-			bam = "output/merged_bams/{sample_name}_{sample_number}_merged_nodups.bam",
-			bam_index = "output/merged_bams/{sample_name}_{sample_number}_merged_nodups.bai",
+			bam = "output/realigned_bam/{sample_name}_{sample_number}_realigned.bam",
+			index = "output/realigned_bam/{sample_name}_{sample_number}_realigned.bai"
 			bqsr_report = "output/bqsr_tables/{sample_name}_{sample_number}_recal_data.table"
 		output:
 			bam_file = "output/final_bam/{sample_name}_{sample_number}_final.bam",
@@ -323,8 +378,8 @@ else:
 
 	rule move_final_bam:
 		input:
-			bam = "output/merged_bams/{sample_name}_{sample_number}_merged_nodups.bam",
-			bam_index = "output/merged_bams/{sample_name}_{sample_number}_merged_nodups.bai",
+			bam = "output/realigned_bam/{sample_name}_{sample_number}_realigned.bam",
+			index = "output/realigned_bam/{sample_name}_{sample_number}_realigned.bai"
 		output:
 			bam = "output/final_bam/{sample_name}_{sample_number}_final.bam",
 			bam_index = "output/final_bam/{sample_name}_{sample_number}_final.bai"
@@ -341,7 +396,7 @@ else:
 # Create an interval file from the BED file for use in Picard tools such as CollectHsMetrics
 rule create_interval_file:
 	input:
-		config["capture_bed_file"]
+		ancient(config["capture_bed_file"])
 	output:
 		temp("output/config/" + Path(config["capture_bed_file"]).name.split(".")[0] + ".interval_list")
 	params:
@@ -525,7 +580,7 @@ rule calculate_coverage_metrics:
 # Sort ROI bed for splitting by bedextract
 rule sort_capture_bed:
 	input:
-		config["capture_bed_file"]
+		ancient(config["capture_bed_file"])
 	output:
 		temp("output/config/sorted_beds/{{panel}}_sorted.bed".format(panel=panel))
 	shell:
