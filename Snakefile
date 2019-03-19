@@ -379,7 +379,7 @@ else:
 	rule move_final_bam:
 		input:
 			bam = "output/realigned_bam/{sample_name}_{sample_number}_realigned.bam",
-			index = "output/realigned_bam/{sample_name}_{sample_number}_realigned.bai"
+			bam_index = "output/realigned_bam/{sample_name}_{sample_number}_realigned.bai"
 		output:
 			bam = "output/final_bam/{sample_name}_{sample_number}_final.bam",
 			bam_index = "output/final_bam/{sample_name}_{sample_number}_final.bai"
@@ -600,60 +600,60 @@ rule split_bed_by_chromosome:
 
 # Create GVCF using Haplotype Caller for each sample chromosome combination
 rule create_gvcfs:
-		input:
-				bam_file = "output/final_bam/{sample_name}_{sample_number}_final.bam",
-				bam_index= "output/final_bam/{sample_name}_{sample_number}_final.bai",
-				bed = "output/config/split_capture_bed/{chr}.bed",
-				ped = "output/config/" + seq_id + ".ped"
-		output:
-				gvcf_file = temp("output/gvcfs/{sample_name}_{sample_number}_chr{chr}.g.vcf"),
-				index = temp("output/gvcfs/{sample_name}_{sample_number}_chr{chr}.g.vcf.idx")
-		params:
-				ref = config["reference"],
-				padding = config['interval_padding_haplotype_caller'],
-				java_options = config['gatk_hc_java_options'],
-				java_home = config["java_home"]
-		shell:
-				"export JAVA_HOME={params.java_home}; gatk3 "
-				"{params.java_options} "
-				"-T HaplotypeCaller "
-				"-R {params.ref} "
-				"-I {input.bam_file} "
-				"-L {input.bed} "
-				"-ip {params.padding} "
-				"-o {output.gvcf_file} "
-				"-ped {input.ped} "
-				"--genotyping_mode DISCOVERY "
-				"--emitRefConfidence GVCF "
-				"-dt NONE "
+	input:
+			bam_file = "output/final_bam/{sample_name}_{sample_number}_final.bam",
+			bam_index= "output/final_bam/{sample_name}_{sample_number}_final.bai",
+			bed = "output/config/split_capture_bed/{chr}.bed",
+			ped = "output/config/" + seq_id + ".ped"
+	output:
+			gvcf_file = temp("output/gvcfs/{sample_name}_{sample_number}_chr{chr}.g.vcf"),
+			index = temp("output/gvcfs/{sample_name}_{sample_number}_chr{chr}.g.vcf.idx")
+	params:
+			ref = config["reference"],
+			padding = config['interval_padding_haplotype_caller'],
+			java_options = config['gatk_hc_java_options'],
+			java_home = config["java_home"]
+	shell:
+			"export JAVA_HOME={params.java_home}; gatk3 "
+			"{params.java_options} "
+			"-T HaplotypeCaller "
+			"-R {params.ref} "
+			"-I {input.bam_file} "
+			"-L {input.bed} "
+			"-ip {params.padding} "
+			"-o {output.gvcf_file} "
+			"-ped {input.ped} "
+			"--genotyping_mode DISCOVERY "
+			"--emitRefConfidence GVCF "
+			"-dt NONE "
 
 # Genotype the gvcfs and produce a joint vcf
 rule genotype_gvcfs:
-		input:
-				gvcfs = expand("output/gvcfs/{sample_name}_{sample_number}_chr{{chr}}.g.vcf" , zip, sample_name=sample_names, sample_number=sample_numbers),
-				index = expand("output/gvcfs/{sample_name}_{sample_number}_chr{{chr}}.g.vcf.idx", zip, sample_name=sample_names, sample_number=sample_numbers),
-				bed = "output/config/split_capture_bed/{chr}.bed",
-				ped = "output/config/" + seq_id + ".ped"
-		output:
-				vcf = temp("output/jointvcf_per_chr/{seq_id}_chr{chr}.vcf"),
-				index = temp("output/jointvcf_per_chr/{seq_id}_chr{chr}.vcf.idx")
-		params:
-				ref = config["reference"],
-				java_options = config['gatk_hc_java_options'],
-				padding = config['interval_padding_haplotype_caller'],
-				files = lambda wildcards, input: " -V ".join(input.gvcfs),
-				java_home = config["java_home"]
-		shell:
-				"export JAVA_HOME={params.java_home}; gatk3 "
-				"{params.java_options} "
-				"-T GenotypeGVCFs "
-				"-R {params.ref} "
-				"-V {params.files} "
-				"-L {input.bed} "
-				"-ip {params.padding} "
-				"-o {output.vcf} "
-				"-ped {input.ped} "
-				"-dt NONE "
+	input:
+			gvcfs = expand("output/gvcfs/{sample_name}_{sample_number}_chr{{chr}}.g.vcf" , zip, sample_name=sample_names, sample_number=sample_numbers),
+			index = expand("output/gvcfs/{sample_name}_{sample_number}_chr{{chr}}.g.vcf.idx", zip, sample_name=sample_names, sample_number=sample_numbers),
+			bed = "output/config/split_capture_bed/{chr}.bed",
+			ped = "output/config/" + seq_id + ".ped"
+	output:
+			vcf = temp("output/jointvcf_per_chr/{seq_id}_chr{chr}.vcf"),
+			index = temp("output/jointvcf_per_chr/{seq_id}_chr{chr}.vcf.idx")
+	params:
+			ref = config["reference"],
+			java_options = config['gatk_hc_java_options'],
+			padding = config['interval_padding_haplotype_caller'],
+			files = lambda wildcards, input: " -V ".join(input.gvcfs),
+			java_home = config["java_home"]
+	shell:
+			"export JAVA_HOME={params.java_home}; gatk3 "
+			"{params.java_options} "
+			"-T GenotypeGVCFs "
+			"-R {params.ref} "
+			"-V {params.files} "
+			"-L {input.bed} "
+			"-ip {params.padding} "
+			"-o {output.vcf} "
+			"-ped {input.ped} "
+			"-dt NONE "
 
 # Combine the chromsome vcfs into one final vcf with all samples and all chromosomes
 rule collect_vcfs:
