@@ -1,0 +1,126 @@
+1000k_high_confidence_snps: /media/sf_Documents/genomics_resources/snps/1000G_phase1.snps.high_confidence.b37.vcf
+bwa_reference: /media/sf_Documents/genomics_resources/bwa/human_g1k_v37.fasta
+bwa_threads: 1
+capture_bed_file: /media/sf_Documents/gatk_snakemake/configs/IlluminaTruSightCancer/IlluminaTruSightCancer_ROI_b37.bed
+ccr_bed: /media/sf_Documents/genomics_resources/beds/ccrs.all.v2.20180420_37.bed.gz
+centre: AWGL
+chromosomes:
+- '1'
+- '2'
+- '3'
+- '4'
+- '5'
+- '6'
+- '7'
+- '8'
+- '9'
+- '10'
+- '11'
+- '12'
+- '13'
+- '14'
+- '15'
+- '16'
+- '17'
+- '18'
+- '19'
+- '20'
+- '21'
+- '22'
+- X
+- Y
+- MT
+coverage_calculator: /media/sf_Documents/CoverageCalculatorPy/CoverageCalculatorPy.py
+dbsnp_vcf: /media/sf_Documents/genomics_resources/snps/gnomad.exomes.r2.0.1.sites.vcf.gz
+dbsnp_vcf_eval: /media/sf_Documents/genomics_resources/snps/dbsnp_138.b37.excluding_sites_after_129.vcf
+fastp_threads: 1
+fastq_screen_config: /media/sf_Documents/gatk_snakemake/configs/IlluminaTruSightCancer/fastq_screen.txt
+fastq_screen_threads: 1
+fastqc_temp_dir: /tmp/
+fastqc_threads: 1
+filter_config: /media/sf_Documents/gatk_snakemake/configs/filter_config.yaml
+gatk_analyse_covariates_java_options: -XX:GCTimeLimit=50 -XX:GCHeapFreeLimit=10 -Djava.io.tmpdir=/tmp/
+  -Xmx2g
+gatk_bqsr_java_options: -XX:GCTimeLimit=50 -XX:GCHeapFreeLimit=10 -Djava.io.tmpdir=/tmp/
+  -Xmx4g
+gatk_genomics_db_java_options: -XX:GCTimeLimit=50 -XX:GCHeapFreeLimit=10 -Djava.io.tmpdir=/tmp/
+  -Xmx12g
+gatk_hc_java_options: -XX:GCTimeLimit=50 -XX:GCHeapFreeLimit=10 -Djava.io.tmpdir=/tmp/
+  -Xmx16g
+gatk_variants_java_options: -XX:GCTimeLimit=50 -XX:GCHeapFreeLimit=10 -Djava.io.tmpdir=/tmp/
+  -Xmx4g
+genomic_superdups_bed: /media/sf_Documents/genomics_resources/beds/genomicSuperDups_b37.bed.gz
+germline_hotspots: /media/sf_Documents/genomics_resources/beds/GermlineEnrichment_Hotspots.bed
+germline_variant_filter: /media/sf_Documents/germline_variant_filter/germline_variant_filter/germline_variant_filter.py
+gnomad_exomes: /media/sf_Documents/genomics_resources/snps/gnomad.exomes.r2.0.1.sites.vcf.gz
+gnomad_genomes: /media/sf_Documents/genomics_resources/snps/gnomad.genomes.r2.0.1.sites.noVEP.vcf.gz
+gold_standard_indels: /media/sf_Documents/genomics_resources/snps/Mills_and_1000G_gold_standard.indels.b37.vcf
+hotspot_bed_dir: /media/sf_Documents/gatk_snakemake/configs/IlluminaTruSightCancer/hotspot_coverage/
+indel_max_FS: 200.0
+indel_max_SOR: 10.0
+indel_min_QD: 2.0
+indel_min_ReadPosRankSum: -20.0
+indel_min_inbreeding_coeff: -0.8
+indel_min_qual: 30.0
+indels_1k_vcf: /media/sf_Documents/genomics_resources/snps/1000G_phase1.indels.b37.vcf
+interval_padding_bqsr: 100
+interval_padding_haplotype_caller: 100
+java_home: /Users/josephhalstead/miniconda3/envs/nipd/bin/java
+local_panel_app_dump: /media/sf_Documents/germline_variant_filter/panelapp.csv
+manta_threads: 1
+merge_duplicates_max_records: 2000000
+min_genotype_depth: 10.0
+minimum_coverage: 20
+panel: IlluminaTruSightCancer
+perform_bqsr: false
+picard_memory_options: -XX:GCTimeLimit=50 -XX:GCHeapFreeLimit=10 -Djava.io.tmpdir=/tmp/
+  -Xmx20g
+picard_temp_dir: /tmp/
+pipelineName: GermlineEnrichment
+pipelineVersion: 2.5.3
+platform: ILLUMINA
+reference: /media/sf_Documents/genomics_resources/refs/human_g1k_v37.fasta
+reference_index: /media/sf_Documents/genomics_resources/refs/human_g1k_v37.fasta.fai
+reference_sequence_dict: /media/sf_Documents/genomics_resources/refs/human_g1k_v37.dict
+refseq: /media/sf_Documents/genomics_resources/refs/ref_GRCh37.p13_top_level_canonical_b37_sorted.gff3.gz
+sample_info:
+  18M13315:
+    familyId: null
+    maternalId: null
+    paternalId: null
+    phenotype: null
+    sex: '2'
+    worklistId: 19-57
+  18M20204:
+    familyId: null
+    maternalId: null
+    paternalId: null
+    phenotype: null
+    sex: '2'
+    worklistId: 19-57
+  18M20207:
+    familyId: null
+    maternalId: null
+    paternalId: null
+    phenotype: null
+    sex: '1'
+    worklistId: 19-57
+  NTC:
+    familyId: null
+    maternalId: null
+    paternalId: null
+    phenotype: null
+    sex: null
+    worklistId: 19-57
+samtools_temp_dir: /tmp/
+seqId: 190115_M00766_0179_000000000-C7V5H
+snp_max_FS: 60.0
+snp_min_MQ: 40.0
+snp_min_MQRankSum: -12.5
+snp_min_QD: 2.0
+snp_min_ReadPosRankSum: -8.0
+snp_min_qual: 30.0
+spliceai: /media/sf_Documents/genomics_resources/annotations/exome_spliceai_scores.vcf.gz
+variant_evaluation_threads: 1
+vep_cache_location: /media/sf_Documents/genomics_resources/vep
+vep_threads: 1

@@ -1,6 +1,6 @@
 
 """
-Germline Enrichment Pipeline Using GATK4
+Germline Enrichment Pipeline Using GATK
 
 Run:
 
@@ -16,7 +16,7 @@ from pathlib import Path
 #-----------------------------------------------------------------------------------------------------------------#
 
 # Which YAMl config to use
-config_location = "testvm.yaml"
+config_location = "config.yaml"
 configfile: config_location
 
 # How many lanes do we have?
@@ -29,7 +29,7 @@ folder, sample_names, sample_numbers = glob_wildcards("{folder}/{sample_name}_{s
 # Get other data from config file
 chromosomes = config["chromosomes"]
 panel = config["panel"]
-seq_id = config["seqId"]
+seqid = config["seqId"]
 
 #-----------------------------------------------------------------------------------------------------------------#
 # Utility Input Functions For Getting Files
@@ -46,8 +46,8 @@ def get_fastqc(wildcards):
 
 		for sample_name, sample_number in zip(sample_names,sample_numbers ):
 
-			file_list.append("output/qc_reports/fastqc/" + sample_name + "_" + sample_number + "_" + lane + "_R1_001.qfilter_fastqc.html" )
-			file_list.append("output/qc_reports/fastqc/" + sample_name + "_" + sample_number + "_" + lane + "_R2_001.qfilter_fastqc.html" )
+			file_list.append(sample_name + "/" + sample_name + "_" + sample_number + "_" + lane + "_R1_001_qfilter_fastqc.html" )
+			file_list.append(sample_name + "/" + sample_name + "_" + sample_number + "_" + lane + "_R2_001_qfilter_fastqc.html" )
 
 	return file_list
 
@@ -64,7 +64,7 @@ def get_all_custom_coverage(wildcards):
 
 		for bedfile in beds[0]:
 
-			my_input = "output/depth/hotspot_coverage/" + sample_name + "_" + sample_number + "_" + bedfile + ".coverage"
+			my_input = sample_name + "/hotspot_coverage/" + sample_name + "_" + sample_number + "_" + bedfile + ".coverage"
 			file_list.append(my_input)
 
 	return file_list
@@ -76,7 +76,7 @@ def get_all_custom_coverage(wildcards):
 # All function pulls all rules together
 rule all:
 	input:
-		expand("output/pipeline_finished/{seq_id}.finished" , seq_id=seq_id),
+		expand("{seqid}.finished" , seqid=seqid),
 
 #-----------------------------------------------------------------------------------------------------------------#
 # Initial QC and Preprocessing
@@ -87,7 +87,7 @@ rule create_ped_file:
 	input:
 		config_location
 	output:
-		"output/config/{seq_id}.ped"
+		"{seqid}.ped"
 	shell:
 		"python scripts/make_ped.py --config {input} > {output}"
 
@@ -97,10 +97,10 @@ rule fastp:
 		fwd = "{sample_name}/{sample_name}_{sample_number}_{lane}_R1_001.fastq.gz",
 		rev = "{sample_name}/{sample_name}_{sample_number}_{lane}_R2_001.fastq.gz"
 	output:
-		html = "output/qc_reports/fastp/{sample_name}_{sample_number}_{lane}_fastp.html",
-		json = "output/qc_reports/fastp/{sample_name}_{sample_number}_{lane}_fastp.json",
-		fwd = temp("output/qfiltered_reads/{sample_name}_{sample_number}_{lane}_R1_001.qfilter.fastq.gz"),
-		rev = temp("output/qfiltered_reads/{sample_name}_{sample_number}_{lane}_R2_001.qfilter.fastq.gz")
+		html = "{sample_name}/" + seqid + "_{sample_name}_{sample_number}_{lane}_fastp.html",
+		json = "{sample_name}/" + seqid + "_{sample_name}_{sample_number}_{lane}_fastp.json",
+		fwd = temp("{sample_name}/" + seqid + "_{sample_name}_{sample_number}_{lane}_R1_001_qfilter.fastq.gz"),
+		rev = temp("{sample_name}/" + seqid  + "_{sample_name}_{sample_number}_{lane}_R2_001_qfilter.fastq.gz")
 	threads:
 		config["fastp_threads"]
 	shell:
@@ -121,12 +121,12 @@ rule fastq_screen:
 		fwd = "{sample_name}/{sample_name}_{sample_number}_{lane}_R1_001.fastq.gz",
 		rev = "{sample_name}/{sample_name}_{sample_number}_{lane}_R2_001.fastq.gz"
 	output:
-		"output/qc_reports/fastq_screen/{sample_name}_{sample_number}_{lane}_R1_001_screen.html",
-		temp("output/qc_reports/fastq_screen/{sample_name}_{sample_number}_{lane}_R1_001_screen.png"),
-		"output/qc_reports/fastq_screen/{sample_name}_{sample_number}_{lane}_R1_001_screen.txt",
-		"output/qc_reports/fastq_screen/{sample_name}_{sample_number}_{lane}_R2_001_screen.html",
-		temp("output/qc_reports/fastq_screen/{sample_name}_{sample_number}_{lane}_R2_001_screen.png"),
-		"output/qc_reports/fastq_screen/{sample_name}_{sample_number}_{lane}_R2_001_screen.txt"	
+		"{sample_name}/" + seqid + "_{sample_name}_{sample_number}_{lane}_R1_001_screen.html",
+		temp("{sample_name}/" + seqid + "_{sample_name}_{sample_number}_{lane}_R1_001_screen.png"),
+		"{sample_name}/" + seqid + "_{sample_name}_{sample_number}_{lane}_R1_001_screen.txt",
+		"{sample_name}/" + seqid + "_{sample_name}_{sample_number}_{lane}_R2_001_screen.html",
+		temp("{sample_name}" + seqid + "_/{sample_name}_{sample_number}_{lane}_R2_001_screen.png"),
+		"{sample_name}/" + seqid + "_{sample_name}_{sample_number}_{lane}_R2_001_screen.txt"	
 	threads:
 		config["fastq_screen_threads"]
 	params:
@@ -135,7 +135,7 @@ rule fastq_screen:
 		"fastq_screen "
 		"--aligner bwa "
 		"--threads {threads} "
-		"--outdir output/qc_reports/fastq_screen/ "
+		"--outdir {wildcards.sample_name} "
 		"--conf {params.fastq_screen_config} "
 		"{input.fwd} "
 		"{input.rev}"
@@ -143,25 +143,51 @@ rule fastq_screen:
 # Run fastqc
 rule fastqc:
 	input:
-		fwd = "output/qfiltered_reads/{sample_name}_{sample_number}_{lane}_R1_001.qfilter.fastq.gz",
-		rev = "output/qfiltered_reads/{sample_name}_{sample_number}_{lane}_R2_001.qfilter.fastq.gz"
+		fwd = "{sample_name}/" + seqid + "_{sample_name}_{sample_number}_{lane}_R1_001_qfilter.fastq.gz",
+		rev = "{sample_name}/" + seqid  + "_{sample_name}_{sample_number}_{lane}_R2_001_qfilter.fastq.gz"
 	output:
-		"output/qc_reports/fastqc/{sample_name}_{sample_number}_{lane}_R1_001.qfilter_fastqc.html",
-		"output/qc_reports/fastqc/{sample_name}_{sample_number}_{lane}_R1_001.qfilter_fastqc/summary.txt",	
-		"output/qc_reports/fastqc/{sample_name}_{sample_number}_{lane}_R2_001.qfilter_fastqc.html",
-		"output/qc_reports/fastqc/{sample_name}_{sample_number}_{lane}_R2_001.qfilter_fastqc/summary.txt"
+		html_r1 = "{sample_name}/" + seqid + "_{sample_name}_{sample_number}_{lane}_R1.html",
+		summary_r1 = "{sample_name}/" + seqid + "_{sample_name}_{sample_number}_{lane}_R1.txt",	
+		htmlr2 = "{sample_name}/" + seqid + "_{sample_name}_{sample_number}_{lane}_R2.html",
+		summary_r2 = "{sample_name}/" + seqid + "_{sample_name}_{sample_number}_{lane}_R2.txt"
 	threads:
 		config["fastqc_threads"]
 	params:
-		temp_dir = config["fastqc_temp_dir"]
+		temp_dir = config["fastqc_temp_dir"],
+		seqid = seqid
 	shell:
-		"fastqc "
-		"--threads {threads} "
-		"--dir {params.temp_dir} "
-		"--outdir output/qc_reports/fastqc "
-		"--extract "
-		"{input.fwd} "
-		"{input.rev}"
+		"""
+		fastqc --threads {threads} \
+		--dir {params.temp_dir} \
+		--outdir {wildcards.sample_name} \
+		--extract \
+		{input.fwd} \
+		{input.rev} \
+
+		# move summary file
+		mv {wildcards.sample_name}/{params.seqid}_{wildcards.sample_name}_{wildcards.sample_number}_{wildcards.lane}_R1_001_qfilter_fastqc/summary.txt \
+		{wildcards.sample_name}/{params.seqid}_{wildcards.sample_name}_{wildcards.sample_number}_{wildcards.lane}_R1.txt
+		
+		# move summary file
+		mv {wildcards.sample_name}/{params.seqid}_{wildcards.sample_name}_{wildcards.sample_number}_{wildcards.lane}_R1_001_qfilter_fastqc.html \
+		{wildcards.sample_name}/{params.seqid}_{wildcards.sample_name}_{wildcards.sample_number}_{wildcards.lane}_R1.html
+		
+		# move summary file
+		mv {wildcards.sample_name}/{params.seqid}_{wildcards.sample_name}_{wildcards.sample_number}_{wildcards.lane}_R2_001_qfilter_fastqc/summary.txt \
+		{wildcards.sample_name}/{params.seqid}_{wildcards.sample_name}_{wildcards.sample_number}_{wildcards.lane}_R2.txt
+		
+		# move summary file
+		mv {wildcards.sample_name}/{params.seqid}_{wildcards.sample_name}_{wildcards.sample_number}_{wildcards.lane}_R2_001_qfilter_fastqc.html \
+		{wildcards.sample_name}/{params.seqid}_{wildcards.sample_name}_{wildcards.sample_number}_{wildcards.lane}_R2.html
+		
+		# remove unneeded files
+		rm -r {wildcards.sample_name}/{params.seqid}_{wildcards.sample_name}_{wildcards.sample_number}_{wildcards.lane}_R1_001_qfilter_fastqc
+		rm -r {wildcards.sample_name}/{params.seqid}_{wildcards.sample_name}_{wildcards.sample_number}_{wildcards.lane}_R2_001_qfilter_fastqc
+		rm {wildcards.sample_name}/{params.seqid}_{wildcards.sample_name}_{wildcards.sample_number}_{wildcards.lane}_R1_001_qfilter_fastqc.zip
+		rm {wildcards.sample_name}/{params.seqid}_{wildcards.sample_name}_{wildcards.sample_number}_{wildcards.lane}_R2_001_qfilter_fastqc.zip
+
+		"""
+	
 
 #-----------------------------------------------------------------------------------------------------------------#
 # Alignment and Further Preprocessing
@@ -170,22 +196,22 @@ rule fastqc:
 # Align reads with bwa mem, pipe into samtools and sort
 rule bwa_align:
 	input:
-		fwd = "output/qfiltered_reads/{sample_name}_{sample_number}_{lane}_R1_001.qfilter.fastq.gz",
-		rev = "output/qfiltered_reads/{sample_name}_{sample_number}_{lane}_R2_001.qfilter.fastq.gz"
+		fwd = "{sample_name}/" + seqid + "_{sample_name}_{sample_number}_{lane}_R1_001_qfilter.fastq.gz",
+		rev = "{sample_name}/" + seqid  + "_{sample_name}_{sample_number}_{lane}_R2_001_qfilter.fastq.gz"
 	output:
-		temp("output/alignments/{sample_name}_{sample_number}_{lane}.bam")
+		temp("temp/bam/" + seqid + "_{sample_name}_{sample_number}_{lane}.bam")
 	threads:
 		config["bwa_threads"]
 	params:
 		ref = config["bwa_reference"],
-		seq_id = config["seqId"],
+		seqid = config["seqId"],
 		centre = config["centre"],
 		samtools_temp_dir = config["samtools_temp_dir"]
 	shell:
 		"bwa mem "
 		"-t {threads} "
 		"-M "
-		"-R '@RG\\tID:{params.seq_id}.{params.seq_id}.{wildcards.lane}\\tCN:{params.centre}\\tSM:{wildcards.sample_name}\\tLB:{params.seq_id}\\tPL:ILLUMINA' "
+		"-R '@RG\\tID:{params.seqid}.{wildcards.lane}\\tCN:{params.centre}\\tSM:{wildcards.sample_name}\\tLB:{params.seqid}\\tPL:ILLUMINA' "
 		"{params.ref} {input.fwd} {input.rev} | "
 		"samtools view -Sb - | "
 		"samtools sort -T {params.samtools_temp_dir}.temp -O bam > {output}"
@@ -193,21 +219,21 @@ rule bwa_align:
 # Index the bam file
 rule index_original_bam:
 	input:
-		"output/alignments/{sample_name}_{sample_number}_{lane}.bam"
+		"temp/bam/" + seqid + "_{sample_name}_{sample_number}_{lane}.bam"
 	output:
-		temp("output/alignments/{sample_name}_{sample_number}_{lane}.bam.bai")
+		temp("temp/bam/" + seqid + "_{sample_name}_{sample_number}_{lane}.bam.bai")
 	shell:
 		"samtools index {input}"
 
 # Merge the bams and mark duplicates
 rule merge_and_remove_duplicates:
 	input:
-		bams = expand("output/alignments/{{sample_name}}_{{sample_number}}_{lane}.bam", lane=lanes),
-		bam_indexes = expand("output/alignments/{{sample_name}}_{{sample_number}}_{lane}.bam.bai", lane=lanes),
+		bams = expand("temp/bam/" + seqid + "_{{sample_name}}_{{sample_number}}_{lane}.bam", lane=lanes),
+		bam_indexes = expand("temp/bam/" + seqid + "_{{sample_name}}_{{sample_number}}_{lane}.bam.bai", lane=lanes),
 	output:
-		bam = temp("output/merged_bams/{sample_name}_{sample_number}_merged_nodups.bam"),
-		index = temp("output/merged_bams/{sample_name}_{sample_number}_merged_nodups.bai"),
-		metrics = "output/qc_reports/mark_duplicates/{sample_name}_{sample_number}_MarkDuplicatesMetrics.txt"
+		bam = temp("{sample_name}/" + seqid + "_{sample_name}_{sample_number}_merged_nodups.bam"),
+		index = temp("{sample_name}/" + seqid + "_{sample_name}_{sample_number}_merged_nodups.bai"),
+		metrics = "{sample_name}/" + seqid + "_{sample_name}_{sample_number}_MarkDuplicatesMetrics.txt"
 	params:
 		temp = config["picard_temp_dir"],
 		merge_duplicates_max_records = config["merge_duplicates_max_records"],
@@ -227,10 +253,10 @@ rule merge_and_remove_duplicates:
 # identify regions requiring indel realignment
 rule identify_realignment_regions:
 	input:
-		bam = "output/merged_bams/{sample_name}_{sample_number}_merged_nodups.bam",
-		index = "output/merged_bams/{sample_name}_{sample_number}_merged_nodups.bai"
+		bam = "{sample_name}/" + seqid + "_{sample_name}_{sample_number}_merged_nodups.bam",
+		index = "{sample_name}/" + seqid + "_{sample_name}_{sample_number}_merged_nodups.bai"
 	output:
-		temp("output/merged_bams/{sample_name}_{sample_number}_realign.intervals")
+		temp("{sample_name}/" + seqid + "_{sample_name}_{sample_number}_realign.intervals")
 	params:
 		ref = config["reference"],
 		bed = config["capture_bed_file"],
@@ -255,12 +281,12 @@ rule identify_realignment_regions:
 # Realign around indels
 rule realign_indels:
 	input:
-		bam = "output/merged_bams/{sample_name}_{sample_number}_merged_nodups.bam",
-		index = "output/merged_bams/{sample_name}_{sample_number}_merged_nodups.bai",
-		intervals = "output/merged_bams/{sample_name}_{sample_number}_realign.intervals"
+		bam = "{sample_name}/" + seqid + "_{sample_name}_{sample_number}_merged_nodups.bam",
+		index = "{sample_name}/" + seqid + "_{sample_name}_{sample_number}_merged_nodups.bai",
+		intervals = "{sample_name}/" + seqid + "_{sample_name}_{sample_number}_realign.intervals"
 	output:
-		bam = temp("output/realigned_bam/{sample_name}_{sample_number}_realigned.bam"),
-		index = temp("output/realigned_bam/{sample_name}_{sample_number}_realigned.bai")
+		bam = temp("{sample_name}/" + seqid + "_{sample_name}_{sample_number}_merged_nodups_realigned.bam"),
+		index = temp("{sample_name}/" + seqid + "_{sample_name}_{sample_number}_merged_nodups_realigned.bai")
 	params:
 		ref = config["reference"],
 		known_sites_indels = config["indels_1k_vcf"],
@@ -285,10 +311,10 @@ if config["perform_bqsr"] == True:
 	# Create the BQSR report to later apply
 	rule create_base_quality_report:
 		input:
-			bam = "output/realigned_bam/{sample_name}_{sample_number}_realigned.bam",
-			index = "output/realigned_bam/{sample_name}_{sample_number}_realigned.bai"
+			bam = "{sample_name}/" + seqid + "_{sample_name}_{sample_number}_merged_nodups_realigned.bam",
+			index = "{sample_name}/" + seqid + "_{sample_name}_{sample_number}_merged_nodups_realigned.bai"
 		output:
-			"output/bqsr_tables/{sample_name}_{sample_number}_recal_data.table"
+			"{sample_name}/" + seqid + "_{sample_name}_{sample_number}_recal_data.table"
 		params:
 			ref = config["reference"],
 			known_sites_dbsnp = config["dbsnp_vcf"],
@@ -312,19 +338,19 @@ if config["perform_bqsr"] == True:
 	# Apply BQSR Report
 	rule apply_base_quality_report:
 		input:
-			bam = "output/realigned_bam/{sample_name}_{sample_number}_realigned.bam",
-			index = "output/realigned_bam/{sample_name}_{sample_number}_realigned.bai",
-			bqsr_report = "output/bqsr_tables/{sample_name}_{sample_number}_recal_data.table"
+			bam = "{sample_name}/" + seqid + "_{sample_name}_{sample_number}_merged_nodups_realigned.bam",
+			index = "{sample_name}/" + seqid + "_{sample_name}_{sample_number}_merged_nodups_realigned.bai",
+			bqsr_report = "{sample_name}/" + seqid + "_{sample_name}_{sample_number}_recal_data.table"
 		output:
-			bam_file = "output/final_bam/{sample_name}_{sample_number}_final.bam",
-			bam_index = "output/final_bam/{sample_name}_{sample_number}_final.bai"
+			bam_file = "{sample_name}/" + seqid + "_{sample_name}_{sample_number}_final.bam",
+			bam_index = "{sample_name}/" + seqid + "_{sample_name}_{sample_number}_final.bai"
 		params:
 			ref = config["reference"],
 			java_options = config["gatk_bqsr_java_options"]
 		shell:
 			"gatk --java-options '{params.java_options}' "
-			" ApplyBQSR -R {params.ref} "
-			" -I {input.bam} "
+			"ApplyBQSR -R {params.ref} "
+			"-I {input.bam} "
 			"-bqsr {input.bqsr_report} "
 			"-O {output.bam_file} "
 
@@ -332,10 +358,10 @@ if config["perform_bqsr"] == True:
 	# Do we really need this?
 	rule create_base_quality_report_second_pass:
 		input:
-			bam = "output/final_bam/{sample_name}_{sample_number}_final.bam",
-			bam_index = "output/final_bam/{sample_name}_{sample_number}_final.bai"
+			bam = "{sample_name}/" + seqid + "_{sample_name}_{sample_number}_final.bam",
+			bam_index = "{sample_name}/" + seqid + "_{sample_name}_{sample_number}_final.bai"
 		output:
-			"output/bqsr_tables/{sample_name}_{sample_number}_post_recal_data.table"
+			"{sample_name}/" + seqid + "_{sample_name}_{sample_number}_post_recal_data.table"
 		params:
 			ref = config["reference"],
 			known_sites_dbsnp = config["dbsnp_vcf"],
@@ -359,11 +385,11 @@ if config["perform_bqsr"] == True:
 	# Analyse co-variates before and after BQSR
 	rule analyse_covariates:
 		input:
-			before = "output/bqsr_tables/{sample_name}_{sample_number}_recal_data.table",
-			after = "output/bqsr_tables/{sample_name}_{sample_number}_post_recal_data.table"
+			before = "{sample_name}/" + seqid + "_{sample_name}_{sample_number}_recal_data.table",
+			after = "{sample_name}/" + seqid + "_{sample_name}_{sample_number}_post_recal_data.table"
 		output:
-			pdf = "output/qc_reports/bqsr/{sample_name}_{sample_number}_bqsr_covariation.pdf",
-			csv = "output/qc_reports/bqsr/{sample_name}_{sample_number}_bqsr_covariation.csv",
+			pdf = "{sample_name}/" + seqid + "_{sample_name}_{sample_number}_recalibration_plots.pdf",
+			csv = "{sample_name}/" + seqid + "_{sample_name}_{sample_number}_recalibration.csv",
 		params:
 			java_options = config["gatk_analyse_covariates_java_options"]
 		shell:
@@ -376,17 +402,16 @@ if config["perform_bqsr"] == True:
 
 else:
 
+	# Move bam to final folder if we don't perform bqsr
 	rule move_final_bam:
 		input:
-			bam = "output/realigned_bam/{sample_name}_{sample_number}_realigned.bam",
-			bam_index = "output/realigned_bam/{sample_name}_{sample_number}_realigned.bai"
+			bam = "{sample_name}/" + seqid + "_{sample_name}_{sample_number}_merged_nodups_realigned.bam",
+			bam_index = "{sample_name}/" + seqid + "_{sample_name}_{sample_number}_merged_nodups_realigned.bai"
 		output:
-			bam = "output/final_bam/{sample_name}_{sample_number}_final.bam",
-			bam_index = "output/final_bam/{sample_name}_{sample_number}_final.bai"
+			bam = "{sample_name}/" + seqid + "_{sample_name}_{sample_number}_final.bam",
+			bam_index = "{sample_name}/" + seqid + "_{sample_name}_{sample_number}_final.bai"
 		shell:
 			"cp {input.bam} {output.bam}; cp {input.bam_index} {output.bam_index} "
-
-
 
 #-----------------------------------------------------------------------------------------------------------------#
 # Post Alignment QC
@@ -398,7 +423,7 @@ rule create_interval_file:
 	input:
 		ancient(config["capture_bed_file"])
 	output:
-		temp("output/config/" + Path(config["capture_bed_file"]).name.split(".")[0] + ".interval_list")
+		temp(Path(config["capture_bed_file"]).name.split(".")[0] + ".interval_list")
 	params:
 		sequence_dict = config["reference_sequence_dict"],
 		java_home = config["java_home"]
@@ -408,11 +433,11 @@ rule create_interval_file:
 # Collect the insert size metrics using picard
 rule collect_insert_size_metrics:
 	input:
-		bam = "output/final_bam/{sample_name}_{sample_number}_final.bam",
-		bam_index = "output/final_bam/{sample_name}_{sample_number}_final.bai"
+		bam = "{sample_name}/" + seqid + "_{sample_name}_{sample_number}_final.bam",
+		bam_index = "{sample_name}/" + seqid + "_{sample_name}_{sample_number}_final.bai"
 	output:
-		txt="output/qc_reports/insert_size_metrics/{sample_name}_{sample_number}_InsertSizeMetrics.txt",
-		pdf="output/qc_reports/insert_size_metrics/{sample_name}_{sample_number}_InsertSizeMetrics.pdf"
+		txt = "{sample_name}/" + seqid + "_{sample_name}_{sample_number}_InsertSizeMetrics.txt",
+		pdf = "{sample_name}/" + seqid + "_{sample_name}_{sample_number}_InsertSizeMetrics.pdf"
 	params:
 		java_home = config["java_home"]
 	shell:
@@ -421,15 +446,14 @@ rule collect_insert_size_metrics:
 		"O={output.txt} "
 		"HISTOGRAM_FILE={output.pdf} "
 
-
 # Collect the HS metrics using picard
 rule collect_hs_metrics:
 	input:
-		bam = "output/final_bam/{sample_name}_{sample_number}_final.bam",
-		bam_index = "output/final_bam/{sample_name}_{sample_number}_final.bai",
-		intervals = "output/config/" + Path(config["capture_bed_file"]).name.split(".")[0] + ".interval_list"
+		bam = "{sample_name}/" + seqid + "_{sample_name}_{sample_number}_final.bam",
+		bam_index = "{sample_name}/" + seqid + "_{sample_name}_{sample_number}_final.bai",
+		intervals = Path(config["capture_bed_file"]).name.split(".")[0] + ".interval_list"
 	output:
-		"output/qc_reports/hs_metrics/{sample_name}_{sample_number}_HsMetrics.txt"
+		"{sample_name}/" + seqid + "_{sample_name}_{sample_number}_HsMetrics.txt"
 	params:
 		ref = config["reference"],
 		java_home = config["java_home"]
@@ -444,10 +468,10 @@ rule collect_hs_metrics:
 # Collect alignment summary metrics using picard
 rule collect_alignment_metrics:
 	input:
-		bam = "output/final_bam/{sample_name}_{sample_number}_final.bam",
-		bam_index = "output/final_bam/{sample_name}_{sample_number}_final.bai"
+		bam = "{sample_name}/" + seqid + "_{sample_name}_{sample_number}_final.bam",
+		bam_index = "{sample_name}/" + seqid + "_{sample_name}_{sample_number}_final.bai"
 	output:
-		"output/qc_reports/alignment_metrics/{sample_name}_{sample_number}_AlignmentSummaryMetrics.txt"
+		"{sample_name}/" + seqid + "_{sample_name}_{sample_number}_AlignmentSummaryMetrics.txt"
 	params:
 		ref = config["reference"],
 		java_home = config["java_home"]
@@ -460,10 +484,10 @@ rule collect_alignment_metrics:
 # Extract high confidence SNPs for contamination analysis
 rule extract_high_confidence_snps:
 	input:
-		config["1000k_high_confidence_snps"]
+		ancient(config["1000k_high_confidence_snps"])
 	output:
-		vcf = temp("output/config/snps/1kg_highconfidence_autosomal_ontarget_monoallelic_snps.vcf"),
-		index = temp("output/config/snps/1kg_highconfidence_autosomal_ontarget_monoallelic_snps.vcf.idx")
+		vcf = temp("1kg_highconfidence_autosomal_ontarget_monoallelic_snps.vcf"),
+		index = temp("1kg_highconfidence_autosomal_ontarget_monoallelic_snps.vcf.idx")
 	params:
 		ref = config["reference"],
 		bed = config["capture_bed_file"],
@@ -486,18 +510,20 @@ rule extract_high_confidence_snps:
 # Check for contamination using verify bam id
 rule verify_bam_id:
 	input:
-		bam = "output/final_bam/{sample_name}_{sample_number}_final.bam",
-		bam_index = "output/final_bam/{sample_name}_{sample_number}_final.bai",
-		vcf = "output/config/snps/1kg_highconfidence_autosomal_ontarget_monoallelic_snps.vcf"
+		bam = "{sample_name}/" + seqid + "_{sample_name}_{sample_number}_final.bam",
+		bam_index = "{sample_name}/" + seqid + "_{sample_name}_{sample_number}_final.bai",
+		vcf = "1kg_highconfidence_autosomal_ontarget_monoallelic_snps.vcf"
 	output:
-		depthSM = "output/qc_reports/verify_bam_id/{sample_name}_{sample_number}_verify_bam_id.depthSM",
-		log = "output/qc_reports/verify_bam_id/{sample_name}_{sample_number}_verify_bam_id.log",
-		selfSM = "output/qc_reports/verify_bam_id/{sample_name}_{sample_number}_verify_bam_id.selfSM"
+		depthSM = "{sample_name}/" + seqid + "_{sample_name}_{sample_number}_Contamination.depthSM",
+		log = temp("{sample_name}/" + seqid + "_{sample_name}_{sample_number}_Contamination.log"),
+		selfSM = "{sample_name}/" + seqid + "_{sample_name}_{sample_number}_Contamination.selfSM"
+	params:
+		seqid = seqid
 	shell:
 		"verifyBamID "
 		"--vcf {input.vcf} "
 		"--bam {input.bam} "
-		"--out output/qc_reports/verify_bam_id/{wildcards.sample_name}_{wildcards.sample_number}_verify_bam_id "
+		"--out {wildcards.sample_name}/{params.seqid}_{wildcards.sample_name}_{wildcards.sample_number}_Contamination "
 		"--verbose "
 		"--ignoreRG "
 		"--chip-none "
@@ -508,11 +534,11 @@ rule verify_bam_id:
 # Calculate per base coverage
 rule generate_per_base_coverage:
 	input:
-		bam = "output/final_bam/{sample_name}_{sample_number}_final.bam",
-		bam_index = "output/final_bam/{sample_name}_{sample_number}_final.bai"
+		bam = "{sample_name}/" + seqid + "_{sample_name}_{sample_number}_final.bam",
+		bam_index = "{sample_name}/" + seqid + "_{sample_name}_{sample_number}_final.bai"
 	output:
-		depth = temp("output/depth/depth_of_coverage/{sample_name}_{sample_number}_DepthOfCoverage"),
-		summary = "output/depth/depth_of_coverage/{sample_name}_{sample_number}_DepthOfCoverage.sample_summary"
+		depth = temp("{sample_name}/" + seqid + "_{sample_name}_{sample_number}_DepthOfCoverage"),
+		summary = "{sample_name}/" + seqid + "_{sample_name}_{sample_number}_DepthOfCoverage.sample_summary"
 	params:
 		ref = config["reference"],
 		bed = config["capture_bed_file"],
@@ -535,10 +561,10 @@ rule generate_per_base_coverage:
 # Create a compressed and indexed version of the depth file
 rule compress_and_index_coverage:
 	input:
-		"output/depth/depth_of_coverage/{sample_name}_{sample_number}_DepthOfCoverage"
+		"{sample_name}/" + seqid + "_{sample_name}_{sample_number}_DepthOfCoverage"
 	output:
-		depth = "output/depth/depth_of_coverage/{sample_name}_{sample_number}_DepthOfCoverage.gz",
-		index = "output/depth/depth_of_coverage/{sample_name}_{sample_number}_DepthOfCoverage.gz.tbi"
+		depth = "{sample_name}/" + seqid + "_{sample_name}_{sample_number}_DepthOfCoverage.gz",
+		index = "{sample_name}/" + seqid + "_{sample_name}_{sample_number}_DepthOfCoverage.gz.tbi"
 	shell:
 		"sed 's/:/\t/g' {input} | grep -v 'Locus' | sort -k1,1 -k2,2n | bgzip > {output.depth} && "
 		"tabix -b 2 -e 2 -s 1 {output.depth} "
@@ -550,16 +576,16 @@ rule compress_and_index_coverage:
 
 rule calculate_coverage_metrics:
 	input:
-		depth = "output/depth/depth_of_coverage/{sample_name}_{sample_number}_DepthOfCoverage.gz",
-		index = "output/depth/depth_of_coverage/{sample_name}_{sample_number}_DepthOfCoverage.gz.tbi"	
+		depth = "{sample_name}/" + seqid + "_{sample_name}_{sample_number}_DepthOfCoverage.gz",
+		index = "{sample_name}/" + seqid + "_{sample_name}_{sample_number}_DepthOfCoverage.gz.tbi"	
 	output:
-		"output/depth/metrics/" + seq_id + "_{sample_name}_{sample_number}_Gaps.bed"
+		"{sample_name}/" + seqid + "_{sample_name}_{sample_number}_Gaps.bed"
 	params:
 		roi_bed = config["capture_bed_file"],
 		panel = panel,
 		hotspots = config["germline_hotspots"],
 		min_coverage = config["minimum_coverage"],
-		seq_id = seq_id,
+		seqid = seqid,
 		refseq = config["refseq"]
 	shell:
 		"bash scripts/get_coverage.sh "
@@ -567,11 +593,12 @@ rule calculate_coverage_metrics:
 		"{params.panel} "
 		"{params.hotspots} "
 		"{input.depth} "
-		"{params.seq_id} "
+		"{params.seqid} "
 		"{wildcards.sample_name}_{wildcards.sample_number} "
 		"{params.min_coverage} "
 		"{params.refseq} "
-		"output/depth/metrics/ "
+		"temp/depth_metrics "
+		"{wildcards.sample_name}"
 	
 #-----------------------------------------------------------------------------------------------------------------#
 # SNP and Small Indel Calling with GATK Haplotype Caller
@@ -582,87 +609,87 @@ rule sort_capture_bed:
 	input:
 		ancient(config["capture_bed_file"])
 	output:
-		temp("output/config/sorted_beds/{{panel}}_sorted.bed".format(panel=panel))
+		temp("temp/sorted_beds/{{panel}}_sorted.bed".format(panel=panel))
 	shell:
 		"sort-bed {input} > {output}"
 
 # Split the bed by chromosome for input into create_gvcfs
 rule split_bed_by_chromosome:
 	input:
-		"output/config/sorted_beds/{panel}_sorted.bed".format(panel=panel)
+		"temp/sorted_beds/{panel}_sorted.bed".format(panel=panel)
 	output:
-		temp(expand("output/config/split_capture_bed/{chr}.bed", chr=chromosomes))
+		temp(expand("temp/split_capture_bed/{chr}.bed", chr=chromosomes))
 	params:
 		chromosomes = chromosomes
 	shell:
-		"for chr in {params.chromosomes}; do bedextract $chr {input} > output/config/split_capture_bed/$chr.bed; done"
+		"for chr in {params.chromosomes}; do bedextract $chr {input} > temp/split_capture_bed/$chr.bed; done"
 
 
 # Create GVCF using Haplotype Caller for each sample chromosome combination
 rule create_gvcfs:
 	input:
-			bam_file = "output/final_bam/{sample_name}_{sample_number}_final.bam",
-			bam_index= "output/final_bam/{sample_name}_{sample_number}_final.bai",
-			bed = "output/config/split_capture_bed/{chr}.bed",
-			ped = "output/config/" + seq_id + ".ped"
+		bam_file = "{sample_name}/" + seqid + "_{sample_name}_{sample_number}_final.bam",
+		bam_index= "{sample_name}/" + seqid + "_{sample_name}_{sample_number}_final.bai",
+		bed = "temp/split_capture_bed/{chr}.bed",
+		ped = seqid + ".ped"
 	output:
-			gvcf_file = temp("output/gvcfs/{sample_name}_{sample_number}_chr{chr}.g.vcf"),
-			index = temp("output/gvcfs/{sample_name}_{sample_number}_chr{chr}.g.vcf.idx")
+		gvcf_file = temp("{sample_name}/" + seqid + "_{sample_name}_{sample_number}_chr{chr}.g.vcf"),
+		index = temp("{sample_name}/" + seqid + "_{sample_name}_{sample_number}_chr{chr}.g.vcf.idx")
 	params:
-			ref = config["reference"],
-			padding = config['interval_padding_haplotype_caller'],
-			java_options = config['gatk_hc_java_options'],
-			java_home = config["java_home"]
+		ref = config["reference"],
+		padding = config['interval_padding_haplotype_caller'],
+		java_options = config['gatk_hc_java_options'],
+		java_home = config["java_home"]
 	shell:
-			"export JAVA_HOME={params.java_home}; gatk3 "
-			"{params.java_options} "
-			"-T HaplotypeCaller "
-			"-R {params.ref} "
-			"-I {input.bam_file} "
-			"-L {input.bed} "
-			"-ip {params.padding} "
-			"-o {output.gvcf_file} "
-			"-ped {input.ped} "
-			"--genotyping_mode DISCOVERY "
-			"--emitRefConfidence GVCF "
-			"-dt NONE "
+		"export JAVA_HOME={params.java_home}; gatk3 "
+		"{params.java_options} "
+		"-T HaplotypeCaller "
+		"-R {params.ref} "
+		"-I {input.bam_file} "
+		"-L {input.bed} "
+		"-ip {params.padding} "
+		"-o {output.gvcf_file} "
+		"-ped {input.ped} "
+		"--genotyping_mode DISCOVERY "
+		"--emitRefConfidence GVCF "
+		"-dt NONE "
 
 # Genotype the gvcfs and produce a joint vcf
 rule genotype_gvcfs:
 	input:
-			gvcfs = expand("output/gvcfs/{sample_name}_{sample_number}_chr{{chr}}.g.vcf" , zip, sample_name=sample_names, sample_number=sample_numbers),
-			index = expand("output/gvcfs/{sample_name}_{sample_number}_chr{{chr}}.g.vcf.idx", zip, sample_name=sample_names, sample_number=sample_numbers),
-			bed = "output/config/split_capture_bed/{chr}.bed",
-			ped = "output/config/" + seq_id + ".ped"
+		gvcfs = expand("{sample_name}/" + seqid + "_{sample_name}_{sample_number}_chr{{chr}}.g.vcf" , zip, sample_name=sample_names, sample_number=sample_numbers),
+		index = expand("{sample_name}/" + seqid + "_{sample_name}_{sample_number}_chr{{chr}}.g.vcf.idx", zip, sample_name=sample_names, sample_number=sample_numbers),
+		bed = "temp/split_capture_bed/{chr}.bed",
+		ped = seqid + ".ped"
 	output:
-			vcf = temp("output/jointvcf_per_chr/{seq_id}_chr{chr}.vcf"),
-			index = temp("output/jointvcf_per_chr/{seq_id}_chr{chr}.vcf.idx")
+		vcf = temp("temp/jointvcf_per_chr/{seqid}_chr{chr}.vcf"),
+		index = temp("temp/jointvcf_per_chr/{seqid}_chr{chr}.vcf.idx")
 	params:
-			ref = config["reference"],
-			java_options = config['gatk_hc_java_options'],
-			padding = config['interval_padding_haplotype_caller'],
-			files = lambda wildcards, input: " -V ".join(input.gvcfs),
-			java_home = config["java_home"]
+		ref = config["reference"],
+		java_options = config['gatk_hc_java_options'],
+		padding = config['interval_padding_haplotype_caller'],
+		files = lambda wildcards, input: " -V ".join(input.gvcfs),
+		java_home = config["java_home"]
 	shell:
-			"export JAVA_HOME={params.java_home}; gatk3 "
-			"{params.java_options} "
-			"-T GenotypeGVCFs "
-			"-R {params.ref} "
-			"-V {params.files} "
-			"-L {input.bed} "
-			"-ip {params.padding} "
-			"-o {output.vcf} "
-			"-ped {input.ped} "
-			"-dt NONE "
+		"export JAVA_HOME={params.java_home}; gatk3 "
+		"{params.java_options} "
+		"-T GenotypeGVCFs "
+		"-R {params.ref} "
+		"-V {params.files} "
+		"-L {input.bed} "
+		"-ip {params.padding} "
+		"-o {output.vcf} "
+		"-ped {input.ped} "
+		"-dt NONE "
 
 # Combine the chromsome vcfs into one final vcf with all samples and all chromosomes
 rule collect_vcfs:
 	input:
-		vcf = expand("output/jointvcf_per_chr/{{seq_id}}_chr{chr}.vcf", chr= chromosomes),
-		index = expand("output/jointvcf_per_chr/{{seq_id}}_chr{chr}.vcf.idx", chr= chromosomes)
+		vcf = expand("temp/jointvcf_per_chr/{{seqid}}_chr{chr}.vcf", chr= chromosomes),
+		index = expand("temp/jointvcf_per_chr/{{seqid}}_chr{chr}.vcf.idx", chr= chromosomes)
 	output:
-		vcf = temp("output/jointvcf/{seq_id}_all_chr.vcf"),
-		index = temp("output/jointvcf/{seq_id}_all_chr.vcf.idx")
+		vcf = temp("temp/jointvcf/{seqid}_all_chr.vcf"),
+		index = temp("temp/jointvcf/{seqid}_all_chr.vcf.idx")
 	params:
 		files = lambda wildcards, input: " I=".join(input.vcf),
 		java_home = config["java_home"]
@@ -671,7 +698,6 @@ rule collect_vcfs:
 		"I={params.files} "
 		"O={output.vcf}"
 
-
 #-----------------------------------------------------------------------------------------------------------------#
 # Filter Variants on Quality (Hard Filtering)
 #-----------------------------------------------------------------------------------------------------------------#
@@ -679,11 +705,11 @@ rule collect_vcfs:
 # Select just the SNPs
 rule select_snps_for_filtering:
 	input:
-		vcf = "output/jointvcf/{seq_id}_all_chr.vcf",
-		index = "output/jointvcf/{seq_id}_all_chr.vcf.idx"
+		vcf = "temp/jointvcf/{seqid}_all_chr.vcf",
+		index = "temp/jointvcf/{seqid}_all_chr.vcf.idx"
 	output:
-		vcf = temp("output/jointvcf_snps/{seq_id}_all_chr_snps.vcf"),
-		index = temp("output/jointvcf_snps/{seq_id}_all_chr_snps.vcf.idx")
+		vcf = temp("temp/jointvcf_snps/{seqid}_all_chr_snps.vcf"),
+		index = temp("temp/jointvcf_snps/{seqid}_all_chr_snps.vcf.idx")
 	params:
 		ref = config["reference"],
 		padding = config["interval_padding_haplotype_caller"],
@@ -701,11 +727,11 @@ rule select_snps_for_filtering:
 # Filter the SNPs on quality
 rule filter_snps:
 	input:
-		vcf = "output/jointvcf_snps/{seq_id}_all_chr_snps.vcf",
-		index = "output/jointvcf_snps/{seq_id}_all_chr_snps.vcf.idx"
+		vcf = "temp/jointvcf_snps/{seqid}_all_chr_snps.vcf",
+		index = "temp/jointvcf_snps/{seqid}_all_chr_snps.vcf.idx"
 	output:
-		vcf = temp("output/jointvcf_snps_filtered/{seq_id}_all_chr_snps_filtered.vcf"),
-		index = temp("output/jointvcf_snps_filtered/{seq_id}_all_chr_snps_filtered.vcf.idx")
+		vcf = temp("temp/jointvcf_snps_filtered/{seqid}_all_chr_snps_filtered.vcf"),
+		index = temp("temp/jointvcf_snps_filtered/{seqid}_all_chr_snps_filtered.vcf.idx")
 	params:
 		ref = config["reference"],
 		padding = config["interval_padding_haplotype_caller"],
@@ -741,11 +767,11 @@ rule filter_snps:
 # Select all non SNPs
 rule select_non_snps_for_filtering:
 	input:
-		vcf = "output/jointvcf/{seq_id}_all_chr.vcf",
-		index = "output/jointvcf/{seq_id}_all_chr.vcf.idx",
+		vcf = "temp/jointvcf/{seqid}_all_chr.vcf",
+		index = "temp/jointvcf/{seqid}_all_chr.vcf.idx",
 	output:
-		vcf = temp("output/jointvcf_indels/{seq_id}_all_chr_indels.vcf"),
-		index = temp("output/jointvcf_indels/{seq_id}_all_chr_indels.vcf.idx")
+		vcf = temp("temp/jointvcf_indels/{seqid}_all_chr_indels.vcf"),
+		index = temp("temp/jointvcf_indels/{seqid}_all_chr_indels.vcf.idx")
 	params:
 		ref = config["reference"],
 		padding = config["interval_padding_haplotype_caller"],
@@ -763,11 +789,11 @@ rule select_non_snps_for_filtering:
 # Filter the non SNPs e.g. INDEL, MIXED, MNP, SYMBOLIC, NO_VARIATION)
 rule filter_non_snps:
 	input:
-		vcf = "output/jointvcf_indels/{seq_id}_all_chr_indels.vcf",
-		index = "output/jointvcf_indels/{seq_id}_all_chr_indels.vcf.idx"
+		vcf = "temp/jointvcf_indels/{seqid}_all_chr_indels.vcf",
+		index = "temp/jointvcf_indels/{seqid}_all_chr_indels.vcf.idx"
 	output:
-		vcf = temp("output/jointvcf_indels_filtered/{seq_id}_all_chr_indels_filtered.vcf"),
-		index = temp("output/jointvcf_indels_filtered/{seq_id}_all_chr_indels_filtered.vcf.idx")
+		vcf = temp("temp/jointvcf_indels_filtered/{seqid}_all_chr_indels_filtered.vcf"),
+		index = temp("temp/jointvcf_indels_filtered/{seqid}_all_chr_indels_filtered.vcf.idx")
 	params:
 		ref = config["reference"],
 		padding = config["interval_padding_haplotype_caller"],
@@ -803,11 +829,11 @@ rule filter_non_snps:
 # Combine the filtered SNPs and Indels into a single VCF
 rule combine_filtered_snps_and_indels:
 	input:
-		snps = "output/jointvcf_snps_filtered/{seq_id}_all_chr_snps_filtered.vcf",
-		indels = "output/jointvcf_indels_filtered/{seq_id}_all_chr_indels_filtered.vcf"
+		snps = "temp/jointvcf_snps_filtered/{seqid}_all_chr_snps_filtered.vcf",
+		indels = "temp/jointvcf_indels_filtered/{seqid}_all_chr_indels_filtered.vcf"
 	output:
-		vcf = temp("output/jointvcf_all_variants_filtered/{seq_id}_all_variants_filtered.vcf"),
-		index = temp("output/jointvcf_all_variants_filtered/{seq_id}_all_variants_filtered.vcf.idx")
+		vcf = temp("temp/jointvcf_all_variants_filtered/{seqid}_all_variants_filtered.vcf"),
+		index = temp("temp/jointvcf_all_variants_filtered/{seqid}_all_variants_filtered.vcf.idx")
 	params:
 		java_options = config["gatk_variants_java_options"]
 	shell:
@@ -820,11 +846,11 @@ rule combine_filtered_snps_and_indels:
 # Filter on genotype depth - just mark genotypes with low depth
 rule filter_genotypes:
 	input:
-		vcf = "output/jointvcf_all_variants_filtered/{seq_id}_all_variants_filtered.vcf",
-		index = "output/jointvcf_all_variants_filtered/{seq_id}_all_variants_filtered.vcf.idx"
+		vcf = "temp/jointvcf_all_variants_filtered/{seqid}_all_variants_filtered.vcf",
+		index = "temp/jointvcf_all_variants_filtered/{seqid}_all_variants_filtered.vcf.idx"
 	output:
-		vcf = "output/jointvcf_all_variants_filtered_genotype/{seq_id}_all_variants_filtered_genotype.vcf",
-		index = temp("output/jointvcf_all_variants_filtered_genotype/{seq_id}_all_variants_filtered_genotype.vcf.idx")
+		vcf = "temp/jointvcf_all_variants_filtered_genotype/{seqid}_all_variants_filtered_genotype.vcf",
+		index = temp("temp/jointvcf_all_variants_filtered_genotype/{seqid}_all_variants_filtered_genotype.vcf.idx")
 	params:
 		ref = config["reference"],
 		padding = config["interval_padding_haplotype_caller"],
@@ -846,10 +872,10 @@ rule filter_genotypes:
 # Compress and index the filtered vcf
 rule compress_and_index_filtered_vcf:
 	input:
-		"output/jointvcf_all_variants_filtered_genotype/{seq_id}_all_variants_filtered_genotype.vcf"
+		"temp/jointvcf_all_variants_filtered_genotype/{seqid}_all_variants_filtered_genotype.vcf"
 	output:
-		"output/jointvcf_all_variants_filtered_genotype/{seq_id}_all_variants_filtered_genotype.vcf.gz",
-		"output/jointvcf_all_variants_filtered_genotype/{seq_id}_all_variants_filtered_genotype.vcf.gz.tbi"
+		"temp/jointvcf_all_variants_filtered_genotype/{seqid}_all_variants_filtered_genotype.vcf.gz",
+		"temp/jointvcf_all_variants_filtered_genotype/{seqid}_all_variants_filtered_genotype.vcf.gz.tbi"
 	shell:
 		"bgzip {input} && tabix {input}.gz"	
 
@@ -857,10 +883,10 @@ rule compress_and_index_filtered_vcf:
 # Filter out variants outside of ROI
 rule filter_by_roi:
 	input:
-		vcf = "output/jointvcf_all_variants_filtered_genotype/{seq_id}_all_variants_filtered_genotype.vcf.gz",
-		index = "output/jointvcf_all_variants_filtered_genotype/{seq_id}_all_variants_filtered_genotype.vcf.gz.tbi"
+		vcf = "temp/jointvcf_all_variants_filtered_genotype/{seqid}_all_variants_filtered_genotype.vcf.gz",
+		index = "temp/jointvcf_all_variants_filtered_genotype/{seqid}_all_variants_filtered_genotype.vcf.gz.tbi"
 	output:
-		temp("output/jointvcf_all_variants_filtered_genotype_roi/{seq_id}_all_variants_filtered_genotype_roi.vcf")
+		temp("temp/jointvcf_all_variants_filtered_genotype_roi/{seqid}_all_variants_filtered_genotype_roi.vcf")
 	params:
 		bed = config["capture_bed_file"],
 		ref = config["reference"]
@@ -870,9 +896,9 @@ rule filter_by_roi:
 # Use vt to split multiallelics and normalise variants
 rule decompose_and_normalise:
 	input:
-		"output/jointvcf_all_variants_filtered_genotype_roi/{seq_id}_all_variants_filtered_genotype_roi.vcf"
+		"temp/jointvcf_all_variants_filtered_genotype_roi/{seqid}_all_variants_filtered_genotype_roi.vcf"
 	output:
-		temp("output/jointvcf_all_variants_filtered_genotype_roi_norm/{seq_id}_all_variants_filtered_genotype_roi_norm.vcf")
+		temp("temp/jointvcf_all_variants_filtered_genotype_roi_norm/{seqid}_all_variants_filtered_genotype_roi_norm.vcf")
 	params:
 		ref = config["reference"]
 	shell:
@@ -885,13 +911,14 @@ rule decompose_and_normalise:
 # Variant Annotation
 #-----------------------------------------------------------------------------------------------------------------#
 
-
 # Annotate the vcf using VEP
 rule annotate_vep:
 	input:
-		"output/jointvcf_all_variants_filtered_genotype_roi_norm/{seq_id}_all_variants_filtered_genotype_roi_norm.vcf"
+		"temp/jointvcf_all_variants_filtered_genotype_roi_norm/{seqid}_all_variants_filtered_genotype_roi_norm.vcf"
 	output:
-		"output/jointvcf_all_variants_filtered_genotype_roi_norm_vep/{seq_id}_all_variants_filtered_genotype_roi_norm_vep.vcf"
+		vcf = "{seqid}_all_variants_filtered_genotype_roi_norm_vep.vcf",
+		summary = temp("{seqid}_all_variants_filtered_genotype_roi_norm_vep.vcf_summary.html"),
+		warnings = temp("{seqid}_all_variants_filtered_genotype_roi_norm_vep.vcf_warnings.txt")
 	params:
 		vep_cache = config["vep_cache_location"],
 		ref = config["reference"],
@@ -909,7 +936,7 @@ rule annotate_vep:
 		"--species homo_sapiens "
 		"--assembly GRCh37  "
 		"--input_file {input}  "
-		"--output_file {output} "
+		"--output_file {output.vcf} "
 		"--force_overwrite "
 		"--cache "
 		"--dir  {params.vep_cache} "
@@ -931,20 +958,20 @@ rule annotate_vep:
 # Compress and index the VEP annotated vcf
 rule compress_and_index_vep:
 	input:
-		"output/jointvcf_all_variants_filtered_genotype_roi_norm_vep/{seq_id}_all_variants_filtered_genotype_roi_norm_vep.vcf"
+		"{seqid}_all_variants_filtered_genotype_roi_norm_vep.vcf"
 	output:
-		"output/jointvcf_all_variants_filtered_genotype_roi_norm_vep/{seq_id}_all_variants_filtered_genotype_roi_norm_vep.vcf.gz",
-		"output/jointvcf_all_variants_filtered_genotype_roi_norm_vep/{seq_id}_all_variants_filtered_genotype_roi_norm_vep.vcf.gz.tbi"
+		"{seqid}_all_variants_filtered_genotype_roi_norm_vep.vcf.gz",
+		"{seqid}_all_variants_filtered_genotype_roi_norm_vep.vcf.gz.tbi"
 	shell:
 		"bgzip {input} && tabix {input}.gz"	
 
 # Convert vcf to csv
 rule convert_to_csv:
 	input:
-		vcf = "output/jointvcf_all_variants_filtered_genotype_roi_norm_vep/{seq_id}_all_variants_filtered_genotype_roi_norm_vep.vcf.gz",
-		index = "output/jointvcf_all_variants_filtered_genotype_roi_norm_vep/{seq_id}_all_variants_filtered_genotype_roi_norm_vep.vcf.gz.tbi"
+		vcf = "{seqid}_all_variants_filtered_genotype_roi_norm_vep.vcf.gz",
+		index = "{seqid}_all_variants_filtered_genotype_roi_norm_vep.vcf.gz.tbi"
 	output:
-		temp("output/vcf_csv/{seq_id}_vcf.csv")
+		temp("temp/vcf_csv/{seqid}_vcf.csv")
 	shell:
 		"gatk VariantsToTable -V {input.vcf} "
 		"-O {output} -F CHROM -F POS -F REF -F ALT -F ID -F QUAL -F FILTER -F CSQ -F AC "
@@ -953,21 +980,21 @@ rule convert_to_csv:
 # Get the CSQ string which describes the VEP fields	
 rule get_csq_string:
 	input:
-		vcf = "output/jointvcf_all_variants_filtered_genotype_roi_norm_vep/{seq_id}_all_variants_filtered_genotype_roi_norm_vep.vcf.gz",
-		index = "output/jointvcf_all_variants_filtered_genotype_roi_norm_vep/{seq_id}_all_variants_filtered_genotype_roi_norm_vep.vcf.gz.tbi"
+		vcf = "{seqid}_all_variants_filtered_genotype_roi_norm_vep.vcf.gz",
+		index = "{seqid}_all_variants_filtered_genotype_roi_norm_vep.vcf.gz.tbi"
 	output:
-		temp("output/config/csq/{seq_id}_csq.txt")
+		temp("temp/csq/{seqid}_csq.txt")
 	shell:
 		"zcat {input.vcf} | grep \"^##INFO=<ID=CSQ\" | awk 'BEGIN {{ FS = \":\" }} ; {{ print $2 }}' | tr -d '>\" ' > {output} "
 
 # Run the germline variant filter program
 rule create_variant_reports:
 	input:
-		csv = "output/vcf_csv/{seq_id}_vcf.csv",
-		ped = "output/config/{seq_id}.ped",
-		csq = "output/config/csq/{seq_id}_csq.txt"
+		csv = "temp/vcf_csv/{seqid}_vcf.csv",
+		ped = "{seqid}.ped",
+		csq = "temp/csq/{seqid}_csq.txt"
 	output:
-		"output/variant_reports/{seq_id}_finished.txt"
+		"variant_reports/{seqid}_finished.txt"
 	params:
 		germline_variant_filter = config["germline_variant_filter"],
 		filter_config = config["filter_config"],
@@ -981,17 +1008,17 @@ rule create_variant_reports:
 		"--local-panel-app-dump {params.local_panel_app_dump} "
 		"--spliceai "
 		"--gnomad-constraint-scores "
-		"--worksheet {wildcards.seq_id} "
-		"--results-dir output/variant_reports/ "
+		"--worksheet {wildcards.seqid} "
+		"--results-dir variant_reports/ "
 		"--csq $(cat {input.csq}) "
 		"--add-ccrs && touch {output}"
 
 # Merge the metadata from all samples into a single file
 rule collect_meta_data:
 	input:
-		meta = expand("output/vcf_meta/{sample_name}_{sample_number}_meta.txt", zip, sample_name=sample_names, sample_number=sample_numbers)
+		meta = expand("temp/vcf_meta/{sample_name}_{sample_number}_meta.txt", zip, sample_name=sample_names, sample_number=sample_numbers)
 	output:
-		meta = temp("output/vcf_meta/merged_meta.txt")
+		meta = temp("temp/vcf_meta/merged_meta.txt")
 	shell:
 		"cat {input.meta} > {output.meta}"
 
@@ -999,10 +1026,10 @@ rule collect_meta_data:
 # Add metadata to vcf header for variant database import
 rule add_meta_to_vcf:
 	input:
-		vcf = "output/jointvcf_all_variants_filtered_genotype_roi/{seq_id}_all_variants_filtered_genotype_roi.vcf",
-		meta = "output/vcf_meta/merged_meta.txt"
+		vcf = "temp/jointvcf_all_variants_filtered_genotype_roi/{seqid}_all_variants_filtered_genotype_roi.vcf",
+		meta = "temp/vcf_meta/merged_meta.txt"
 	output:
-		temp("output/jointvcf_all_variants_filtered_genotype_roi_meta/{seq_id}_all_variants_filtered_genotype_roi_meta.vcf")
+		temp("temp/jointvcf_all_variants_filtered_genotype_roi_meta/{seqid}_all_variants_filtered_genotype_roi_meta.vcf")
 	shell:
 		"""
 		 grep '^##' {input.vcf} > {output}
@@ -1013,20 +1040,19 @@ rule add_meta_to_vcf:
 # Exclude Mitochrondial variants for inclusion in the variant database
 rule create_vcf_without_mt:
 	input:
-		"output/jointvcf_all_variants_filtered_genotype_roi_meta/{seq_id}_all_variants_filtered_genotype_roi_meta.vcf"
+		"temp/jointvcf_all_variants_filtered_genotype_roi_meta/{seqid}_all_variants_filtered_genotype_roi_meta.vcf"
 	output:
-		"output/jointvcf_all_variants_filtered_genotype_roi_meta_nomt/{seq_id}_all_variants_filtered_genotype_roi_meta_nomt.vcf"
+		"{seqid}_all_variants_filtered_genotype_roi_meta_nomt.vcf"
 	shell:
 		"awk '$1 !~ /^MT/ {{ print $0 }}' {input} > {output}"
-
 
 # Check the final vcf is valid
 rule validate_vcf:
 	input:
-		vcf = "output/jointvcf_all_variants_filtered_genotype_roi_norm_vep/{seq_id}_all_variants_filtered_genotype_roi_norm_vep.vcf.gz",
-		index = "output/jointvcf_all_variants_filtered_genotype_roi_norm_vep/{seq_id}_all_variants_filtered_genotype_roi_norm_vep.vcf.gz.tbi"
+		vcf = "{seqid}_all_variants_filtered_genotype_roi_norm_vep.vcf.gz",
+		index = "{seqid}_all_variants_filtered_genotype_roi_norm_vep.vcf.gz.tbi"
 	output:
-		"output/validated_vcf/{seq_id}.validated"
+		"temp/validated_vcf/{seqid}.validated"
 	params:
 		ref = config["reference"]
 	shell:
@@ -1035,7 +1061,6 @@ rule validate_vcf:
 		"-R {params.ref} "
 		"&& touch {output}"
 
-
 #-----------------------------------------------------------------------------------------------------------------#
 # Final QC checks
 #-----------------------------------------------------------------------------------------------------------------#
@@ -1043,10 +1068,10 @@ rule validate_vcf:
 # Evaluate variant calling
 rule variant_evaluation:
 	input:
-		"output/jointvcf_all_variants_filtered_genotype/{seq_id}_all_variants_filtered_genotype.vcf.gz"
+		"temp/jointvcf_all_variants_filtered_genotype/{seqid}_all_variants_filtered_genotype.vcf.gz"
 	output:
-		"output/qc_reports/variant_calling_metrics/{seq_id}_CollectVariantCallingMetrics.variant_calling_detail_metrics",
-		"output/qc_reports/variant_calling_metrics/{seq_id}_CollectVariantCallingMetrics.variant_calling_summary_metrics"
+		"{seqid}_CollectVariantCallingMetrics.variant_calling_detail_metrics",
+		"{seqid}_CollectVariantCallingMetrics.variant_calling_summary_metrics"
 	params:
 		dbsnp_vcf = config["dbsnp_vcf_eval"],
 		java_home = config["java_home"]
@@ -1055,24 +1080,24 @@ rule variant_evaluation:
 	shell:
 		"export JAVA_HOME={params.java_home}; picard CollectVariantCallingMetrics "
 		"I={input} "
-		"O=output/qc_reports/variant_calling_metrics/{wildcards.seq_id}_CollectVariantCallingMetrics "
+		"O={wildcards.seqid}_CollectVariantCallingMetrics "
 		"DBSNP={params.dbsnp_vcf} "
 		"THREAD_COUNT={threads}"
 
 # Use the Y chromosome coverage to calculate the sex
 rule calculate_sex:
 	input:
-		depth_summary = "output/depth/depth_of_coverage/{sample_name}_{sample_number}_DepthOfCoverage.sample_summary",
-		bam = "output/final_bam/{sample_name}_{sample_number}_final.bam",
-		bam_index = "output/final_bam/{sample_name}_{sample_number}_final.bai"
+		depth_summary = "{sample_name}/" + seqid + "_{sample_name}_{sample_number}_DepthOfCoverage.sample_summary",
+		bam = "{sample_name}/" + seqid + "_{sample_name}_{sample_number}_final.bam",
+		bam_index = "{sample_name}/" + seqid + "_{sample_name}_{sample_number}_final.bai"
 	output:
-		sex = temp("output/qc_reports/sex/{sample_name}_{sample_number}_sex.txt"),
-		y_bed = temp("output/config/y_bed/{sample_name}_{sample_number}_y.bed"),
-		y_cov = temp("output/depth/y_coverage/{sample_name}_{sample_number}_DepthOfCoverage.sample_summary")
+		sex = temp("temp/sex/{sample_name}_{sample_number}_sex.txt"),
+		y_bed = temp("temp/y_bed/{sample_name}_{sample_number}_y.bed"),
+		y_cov = temp("temp/y_coverage/{sample_name}_{sample_number}_DepthOfCoverage.sample_summary")
 	params:
 		bed = config["capture_bed_file"],
 		ref = config["reference"],
-		output_name = "output/depth/y_coverage/{sample_name}_{sample_number}_DepthOfCoverage",
+		output_name = "temp/y_coverage/{sample_name}_{sample_number}_DepthOfCoverage",
 		java_home = config["java_home"]
 	shell:
 		"""
@@ -1119,24 +1144,24 @@ rule calculate_sex:
 # Gather the QC metrics into a single file
 rule gather_qc_metrics:
 	input:
-		bam = "output/final_bam/{sample_name}_{sample_number}_final.bam",
-		bam_index = "output/final_bam/{sample_name}_{sample_number}_final.bai",
-		insert_size_metrics = "output/qc_reports/insert_size_metrics/{sample_name}_{sample_number}_InsertSizeMetrics.txt",
-		duplicate_metrics = "output/qc_reports/mark_duplicates/{sample_name}_{sample_number}_MarkDuplicatesMetrics.txt",
-		hs_metrics = "output/qc_reports/hs_metrics/{sample_name}_{sample_number}_HsMetrics.txt",
-		depth_summary = "output/depth/depth_of_coverage/{sample_name}_{sample_number}_DepthOfCoverage.sample_summary",
-		alignments_summary = "output/qc_reports/alignment_metrics/{sample_name}_{sample_number}_AlignmentSummaryMetrics.txt",
-		contamination = "output/qc_reports/verify_bam_id/{sample_name}_{sample_number}_verify_bam_id.selfSM",
-		fastqc_fwd = expand("output/qc_reports/fastqc/{{sample_name}}_{{sample_number}}_{lane}_R1_001.qfilter_fastqc/summary.txt", lane =lanes),
-		fastqc_rev = expand("output/qc_reports/fastqc/{{sample_name}}_{{sample_number}}_{lane}_R2_001.qfilter_fastqc/summary.txt", lane =lanes),
-		sex = "output/qc_reports/sex/{sample_name}_{sample_number}_sex.txt"
+		bam = "{sample_name}/" + seqid + "_{sample_name}_{sample_number}_final.bam",
+		bam_index = "{sample_name}/" + seqid + "_{sample_name}_{sample_number}_final.bai",
+		insert_size_metrics = "{sample_name}/" + seqid + "_{sample_name}_{sample_number}_InsertSizeMetrics.txt",
+		duplicate_metrics = "{sample_name}/" + seqid + "_{sample_name}_{sample_number}_MarkDuplicatesMetrics.txt",
+		hs_metrics = "{sample_name}/" + seqid + "_{sample_name}_{sample_number}_HsMetrics.txt",
+		depth_summary = "{sample_name}/" + seqid + "_{sample_name}_{sample_number}_DepthOfCoverage.sample_summary",
+		alignments_summary = "{sample_name}/" + seqid + "_{sample_name}_{sample_number}_AlignmentSummaryMetrics.txt",
+		contamination = "{sample_name}/" + seqid + "_{sample_name}_{sample_number}_Contamination.selfSM",
+		fastqc_fwd = expand("{{sample_name}}/" + seqid + "_{{sample_name}}_{{sample_number}}_{lane}_R1.txt", lane =lanes),
+		fastqc_rev = expand("{{sample_name}}/" + seqid + "_{{sample_name}}_{{sample_number}}_{lane}_R2.txt", lane =lanes),
+		sex = "temp/sex/{sample_name}_{sample_number}_sex.txt"
 	output:
 		summary = "{sample_name}/{sample_name}_{sample_number}_QC.txt",
-		high_coverage = "output/qc_reports/high_coverage_bams/{sample_name}_{sample_number}_high_coverage.txt",
-		low_coverage = "output/qc_reports/low_coverage_bams/{sample_name}_{sample_number}_low_coverage.txt",
-		meta = "output/vcf_meta/{sample_name}_{sample_number}_meta.txt"
+		high_coverage = "temp/high_coverage_bams/{sample_name}_{sample_number}_high_coverage.txt",
+		low_coverage = "temp/low_coverage_bams/{sample_name}_{sample_number}_low_coverage.txt",
+		meta = "temp/vcf_meta/{sample_name}_{sample_number}_meta.txt"
 	params:
-		seq_id = seq_id,
+		seqid = seqid,
 		worksheet_id  = lambda w: config["sample_info"][w.sample_name]["worklistId"],
 		panel = panel,
 		pipeline_name = config["pipelineName"],
@@ -1197,24 +1222,25 @@ rule gather_qc_metrics:
 
 		fi		
 
-		RemoteVcfFilePath=$(dirname $PWD)/output/jointvcf_all_variants_filtered_genotype_vep_gnomad_roi_meta/{params.seq_id}_jointvcf_all_variants_filtered_genotype_vep_gnomad_roi_meta.vcf
+		RemoteVcfFilePath=$(dirname $PWD)/{params.seqid}_all_variants_filtered_genotype_roi_meta_nomt.vcf
 
 		RemoteBamFilePath=$(dirname $PWD)/{input.bam}
 
 		# print vcf meta data needed for db import
-		echo \#\#SAMPLE\=\<ID\="{wildcards.sample_name}",Tissue\=Germline,WorklistId\={params.worksheet_id},SeqId\={params.seq_id},,Assay\={params.panel},PipelineName\={params.pipeline_name},PipelineVersion\={params.pipeline_version},RawSequenceQuality\="$rawSequenceQuality",PercentMapped\="$pctPfReadsAligned",ATDropout\="$atDropout",GCDropout\="$gcDropout",MeanInsertSize\="$meanInsertSize",SDInsertSize\="$sdInsertSize",DuplicationRate\="$duplicationRate",TotalReads\="$totalReads",PctSelectedBases\="$pctSelectedBases",MeanOnTargetCoverage\="$meanOnTargetCoverage",PctTargetBasesCt\="$pctTargetBasesCt",EstimatedContamination\="$freemix",GenotypicGender\="$calcSex",TotalTargetedUsableBases\="$totalTargetedUsableBases",RemoteVcfFilePath\="$RemoteVcfFilePath",RemoteBamFilePath\="$RemoteBamFilePath"\> > {output.meta}
+		echo \#\#SAMPLE\=\<ID\="{wildcards.sample_name}",Tissue\=Germline,WorklistId\={params.worksheet_id},seqid\={params.seqid},Assay\={params.panel},PipelineName\={params.pipeline_name},PipelineVersion\={params.pipeline_version},RawSequenceQuality\="$rawSequenceQuality",PercentMapped\="$pctPfReadsAligned",ATDropout\="$atDropout",GCDropout\="$gcDropout",MeanInsertSize\="$meanInsertSize",SDInsertSize\="$sdInsertSize",DuplicationRate\="$duplicationRate",TotalReads\="$totalReads",PctSelectedBases\="$pctSelectedBases",MeanOnTargetCoverage\="$meanOnTargetCoverage",PctTargetBasesCt\="$pctTargetBasesCt",EstimatedContamination\="$freemix",GenotypicGender\="$calcSex",TotalTargetedUsableBases\="$totalTargetedUsableBases",RemoteVcfFilePath\="$RemoteVcfFilePath",RemoteBamFilePath\="$RemoteBamFilePath"\> > {output.meta}
 
 		"""
 
 # Relatedness Testing
 rule relatedness_test:
 	input:
-		"output/jointvcf_all_variants_filtered_genotype_roi/{seq_id}_all_variants_filtered_genotype_roi.vcf"
+		"temp/jointvcf_all_variants_filtered_genotype_roi/{seqid}_all_variants_filtered_genotype_roi.vcf"
 	output:
-		"output/qc_reports/relatedness/{seq_id}.relatedness2",
+		"{seqid}.relatedness2",
+		temp("{seqid}.log")
 	shell:
 		"vcftools --relatedness2 "
-		"--out output/qc_reports/relatedness/{wildcards.seq_id} "
+		"--out {wildcards.seqid} "
 		"--vcf {input} "
 
 # Merge all the sample QC summaries into a single file
@@ -1222,33 +1248,9 @@ rule create_merged_qc:
 	input:
 		expand("{sample_name}/{sample_name}_{sample_number}_QC.txt", zip, sample_name=sample_names, sample_number=sample_numbers)
 	output:
-		"output/qc_reports/combined_qc/" + seq_id + "_combined_QC.txt"
+		seqid + "_combined_QC.txt"
 	shell:
 		"python scripts/merge_qc_files.py . ; mv combined_QC.txt {output}"
-
-# Multiqc to compile all qc data into one file
-rule multiqc:
-	input:
-		expand("output/qc_reports/insert_size_metrics/{sample_name}_{sample_number}_InsertSizeMetrics.txt", zip, sample_name=sample_names, sample_number=sample_numbers),
-		expand("output/qc_reports/mark_duplicates/{sample_name}_{sample_number}_MarkDuplicatesMetrics.txt",zip, sample_name=sample_names, sample_number=sample_numbers),
-		expand("output/qc_reports/hs_metrics/{sample_name}_{sample_number}_HsMetrics.txt",zip, sample_name=sample_names, sample_number=sample_numbers),
-		expand("output/depth/depth_of_coverage/{sample_name}_{sample_number}_DepthOfCoverage.sample_summary",zip, sample_name=sample_names, sample_number=sample_numbers),
-		expand("output/qc_reports/alignment_metrics/{sample_name}_{sample_number}_AlignmentSummaryMetrics.txt",zip, sample_name=sample_names, sample_number=sample_numbers),
-		expand("output/qc_reports/verify_bam_id/{sample_name}_{sample_number}_verify_bam_id.selfSM",zip, sample_name=sample_names, sample_number=sample_numbers),
-		expand("output/qc_reports/variant_calling_metrics/{seq_id}_CollectVariantCallingMetrics.variant_calling_detail_metrics", seq_id = seq_id),
-		expand("output/qc_reports/variant_calling_metrics/{seq_id}_CollectVariantCallingMetrics.variant_calling_summary_metrics", seq_id = seq_id),
-		expand("output/qc_reports/relatedness/{seq_id}.relatedness2",  seq_id = seq_id),
-		fastqc = get_fastqc
-	output:
-		html = "output/qc_reports/multiqc/" + seq_id + ".html",
-		data = directory("output/qc_reports/multiqc/" + seq_id + "_data")
-	params:
-		seq_id = seq_id
-	shell:
-		"multiqc --filename {params.seq_id} "
-		"--outdir output/qc_reports/multiqc/ "
-		"--exclude fastp output/qc_reports"	
-
 
 
 #-----------------------------------------------------------------------------------------------------------------#
@@ -1258,31 +1260,31 @@ rule multiqc:
 # Collect all the high coverage bams and put them in a single file.
 rule high_coverage_bam_list:
 	input:
-		expand("output/qc_reports/high_coverage_bams/{sample_name}_{sample_number}_high_coverage.txt", zip, sample_name=sample_names, sample_number=sample_numbers)
+		expand("temp/high_coverage_bams/{sample_name}_{sample_number}_high_coverage.txt", zip, sample_name=sample_names, sample_number=sample_numbers)
 	output:
-		"output/qc_reports/final_high_coverage_bams/high_coverage_bams.txt"
+		"temp/final_high_coverage_bams/high_coverage_bams.txt"
 	shell:
 		"cat {input} > {output}"
 
 # Collect all the low coverage bams and put them in a single file.
 rule low_coverage_bam_list:
 	input:
-		expand("output/qc_reports/low_coverage_bams/{sample_name}_{sample_number}_low_coverage.txt", zip, sample_name=sample_names, sample_number=sample_numbers)
+		expand("temp/low_coverage_bams/{sample_name}_{sample_number}_low_coverage.txt", zip, sample_name=sample_names, sample_number=sample_numbers)
 	output:
-		"output/qc_reports/final_low_coverage_bams/low_coverage_bams.txt"
+		"temp/final_low_coverage_bams/low_coverage_bams.txt"
 	shell:
 		"cat {input} > {output}"
 
 # Run manta
 rule run_manta:
 	input:
-		bam_file = "output/final_bam/{sample_name}_{sample_number}_final.bam",
-		bam_index = "output/final_bam/{sample_name}_{sample_number}_final.bai",
-		high_bam_list = "output/qc_reports/final_high_coverage_bams/high_coverage_bams.txt",
-		low_bam_list = "output/qc_reports/final_low_coverage_bams/low_coverage_bams.txt"
+		bam_file = "{sample_name}/" + seqid + "_{sample_name}_{sample_number}_final.bam",
+		bam_index = "{sample_name}/" + seqid + "_{sample_name}_{sample_number}_final.bai",
+		high_bam_list = "temp/final_high_coverage_bams/high_coverage_bams.txt",
+		low_bam_list = "temp/final_low_coverage_bams/low_coverage_bams.txt"
 	output:
-		vcf = "output/manta/{sample_name}_{sample_number}_diploidSV.vcf.gz",
-		index = "output/manta/{sample_name}_{sample_number}_diploidSV.vcf.gz.tbi"
+		vcf = "temp/manta/{sample_name}_{sample_number}_diploidSV.vcf.gz",
+		index = "temp/manta/{sample_name}_{sample_number}_diploidSV.vcf.gz.tbi"
 	params:
 		ref = config["reference"]
 	threads:
@@ -1294,10 +1296,10 @@ rule run_manta:
 		"{input.high_bam_list} "
 		"{input.bam_file} "
 		"{params.ref} "
-		"output/manta/{wildcards.sample_name}_{wildcards.sample_number} "
+		"temp/manta/{wildcards.sample_name}_{wildcards.sample_number} "
 		"{threads} "
 		"{wildcards.sample_name}_{wildcards.sample_number} "
-		"output/manta/ "
+		"temp/manta "
 		"{input.low_bam_list}"
 
 # Create the bed file for CNV analysis
@@ -1305,7 +1307,7 @@ rule make_cnv_bed:
 	input:
 		config["capture_bed_file"]
 	output:
-		"output/config/cnv_bed/" + panel + "_ROI_b37_CNV.bed"
+		"temp/cnv_bed/" + panel + "_ROI_b37_CNV.bed"
 	params:
 		genomic_superdups_bed = config["genomic_superdups_bed"],
 		ref_index = config["reference_index"],
@@ -1326,32 +1328,32 @@ rule make_cnv_bed:
 # Exome depth requires bam indexes as .bam.bai rather than .bai
 rule change_bam_indexes:
 	input:
-		bam_index = "output/final_bam/{sample_name}_{sample_number}_final.bai"
+		bam_index = "{sample_name}/" + seqid + "_{sample_name}_{sample_number}_final.bai"
 	output:
-		bam_index = temp("output/final_bam/{sample_name}_{sample_number}_final.bam.bai")
+		bam_index = temp("{sample_name}/" + seqid + "_{sample_name}_{sample_number}_final.bam.bai")
 	shell:
 		"cp {input.bam_index} {output.bam_index}"
 
 # Run the R ExomeDepth program - create empty files for samples with low depth
 rule call_cnvs:
 	input:
-		high_bam_list = "output/qc_reports/final_high_coverage_bams/high_coverage_bams.txt",
-		low_bam_list = "output/qc_reports/final_low_coverage_bams/low_coverage_bams.txt",
-		bed = "output/config/cnv_bed/" + panel + "_ROI_b37_CNV.bed",
-		bam_indexes = expand("output/final_bam/{sample_name}_{sample_number}_final.bam.bai", zip, sample_name=sample_names, sample_number=sample_numbers)
+		high_bam_list = "temp/final_high_coverage_bams/high_coverage_bams.txt",
+		low_bam_list = "temp/final_low_coverage_bams/low_coverage_bams.txt",
+		bed = "temp/cnv_bed/" + panel + "_ROI_b37_CNV.bed",
+		bam_indexes = expand("{sample_name}/" + seqid + "_{sample_name}_{sample_number}_final.bam.bai", zip, sample_name=sample_names, sample_number=sample_numbers)
 	output:
-		expand("output/exome_depth/{sample_name}_{sample_number}_final_cnv_fixed.vcf.gz", zip, sample_name=sample_names, sample_number=sample_numbers),
-		expand("output/exome_depth/{sample_name}_{sample_number}_final_cnv_fixed.vcf.gz.tbi", zip, sample_name=sample_names, sample_number=sample_numbers),
-		"output/exome_depth/ExomeDepth.log",
-		"output/exome_depth/" + seq_id + "_ExomeDepth_Metrics.txt",
+		expand("temp/exome_depth/" + seqid + "_{sample_name}_{sample_number}_final_cnv_fixed.vcf.gz", zip, sample_name=sample_names, sample_number=sample_numbers),
+		expand("temp/exome_depth/" + seqid + "_{sample_name}_{sample_number}_final_cnv_fixed.vcf.gz.tbi", zip, sample_name=sample_names, sample_number=sample_numbers),
+		"temp/exome_depth/ExomeDepth.log",
+		"temp/exome_depth/" + seqid + "_ExomeDepth_Metrics.txt",
 	params:
 		ref = config["reference"],
-		seq_id = seq_id,
-		prefix = "output/exome_depth/",
+		seqid = seqid,
+		prefix = "temp/exome_depth/",
 		sequence_dict = config["reference_sequence_dict"],
 		java_home = config["java_home"]
 	shell:
-		"export JAVA_HOME={params.java_home}; bash scripts/call_cnvs.sh {input.high_bam_list} {params.ref} {input.bed} {params.seq_id} {params.prefix} {params.sequence_dict} {input.low_bam_list}"
+		"export JAVA_HOME={params.java_home}; bash scripts/call_cnvs.sh {input.high_bam_list} {params.ref} {input.bed} {params.seqid} {params.prefix} {params.sequence_dict} {input.low_bam_list}"
 
 #-----------------------------------------------------------------------------------------------------------------#
 # Panel Specific Rules
@@ -1362,28 +1364,28 @@ if panel == "IlluminaTruSightCancer":
 	# Generate single bedfile from gene beds in order to enable custom reporting of gaps and coverage for TSC panel
 	rule create_hotspots_bed_file:
 		input:
-			config["hotspot_bed_dir"]
+			ancient(config["hotspot_bed_dir"])
 		output:
-			"output/config/hotspot_bed/IlluminaTruSightCancer_CustomROI_b37.bed"
+			"temp/hotspot_bed/IlluminaTruSightCancer_CustomROI_b37.bed"
 		shell:
 			"cat {input}*.bed | sort -k1,1 -k2,2n > {output}"
 
 	# Merge the Manta and CNV calls into a single csv file along with QC data
 	rule create_combined_sv_report:
 		input:
-			bed = "output/config/hotspot_bed/IlluminaTruSightCancer_CustomROI_b37.bed",
-			manta = expand("output/manta/{sample_name}_{sample_number}_diploidSV.vcf.gz", zip, sample_name=sample_names, sample_number=sample_numbers),
-			manta_index = expand("output/manta/{sample_name}_{sample_number}_diploidSV.vcf.gz.tbi", zip, sample_name=sample_names, sample_number=sample_numbers),
-			exome_depth = expand("output/exome_depth/{sample_name}_{sample_number}_final_cnv_fixed.vcf.gz.tbi", zip, sample_name=sample_names, sample_number=sample_numbers),
-			high_coverage_bams = "output/qc_reports/final_high_coverage_bams/high_coverage_bams.txt",
-			exome_depth_metrics = "output/exome_depth/" + seq_id + "_ExomeDepth_Metrics.txt",
+			bed = "temp/hotspot_bed/IlluminaTruSightCancer_CustomROI_b37.bed",
+			manta = expand("temp/manta/{sample_name}_{sample_number}_diploidSV.vcf.gz", zip, sample_name=sample_names, sample_number=sample_numbers),
+			manta_index = expand("temp/manta/{sample_name}_{sample_number}_diploidSV.vcf.gz.tbi", zip, sample_name=sample_names, sample_number=sample_numbers),
+			exome_depth = expand("temp/exome_depth/" + seqid + "_{sample_name}_{sample_number}_final_cnv_fixed.vcf.gz.tbi", zip, sample_name=sample_names, sample_number=sample_numbers),
+			high_coverage_bams = "temp/final_high_coverage_bams/high_coverage_bams.txt",
+			exome_depth_metrics = "temp/exome_depth/" + seqid + "_ExomeDepth_Metrics.txt",
 		output:
-			"output/combined_sv_report/" + seq_id + "_cnvReport.csv"
+			seqid + "_cnvReport.csv"
 		params:
 			coverage_dir = "output/depth/depth_of_coverage/",
-			exome_dir = "output/exome_depth/",
-			manta_dir = "output/manta/",
-			run = seq_id			
+			exome_dir = "temp/exome_depth/",
+			manta_dir = "temp/manta/",
+			run = seqid			
 		shell:
 			"python scripts/generateCNVReport.py "
 			"--runid {params.run} "
@@ -1397,14 +1399,14 @@ if panel == "IlluminaTruSightCancer":
 	# Create custom coverage data for each sample
 	rule get_custom_coverage:
 		input:
-			depth = "output/depth/depth_of_coverage/{sample_name}_{sample_number}_DepthOfCoverage.gz",
-			index = "output/depth/depth_of_coverage/{sample_name}_{sample_number}_DepthOfCoverage.gz.tbi",
+			depth = "{sample_name}/" + seqid + "_{sample_name}_{sample_number}_DepthOfCoverage.gz",
+			index = "{sample_name}/" + seqid + "_{sample_name}_{sample_number}_DepthOfCoverage.gz.tbi",
 			bed = config["hotspot_bed_dir"] + "{bedfile}.bed",
 		output:
-			"output/depth/hotspot_coverage/{sample_name}_{sample_number}_{bedfile}.coverage",
-			"output/depth/hotspot_coverage/{sample_name}_{sample_number}_{bedfile}.gaps",
-			"output/depth/hotspot_coverage/{sample_name}_{sample_number}_{bedfile}.missing",
-			"output/depth/hotspot_coverage/{sample_name}_{sample_number}_{bedfile}.totalCoverage"
+			"{sample_name}/hotspot_coverage/{sample_name}_{sample_number}_{bedfile}.coverage",
+			"{sample_name}/hotspot_coverage/{sample_name}_{sample_number}_{bedfile}.gaps",
+			"{sample_name}/hotspot_coverage/{sample_name}_{sample_number}_{bedfile}.missing",
+			"{sample_name}/hotspot_coverage/{sample_name}_{sample_number}_{bedfile}.totalCoverage"
 		params:
 			coverage_calculator = config["coverage_calculator"],
 			min_depth = config["minimum_coverage"]
@@ -1416,14 +1418,14 @@ if panel == "IlluminaTruSightCancer":
 			"-D {input.depth} "
 			"--depth {params.min_depth} "
 			"--padding 0 "
-			"--outdir output/depth/hotspot_coverage/ "
+			"--outdir {wildcards.sample_name}/hotspot_coverage/ "
 			"--outname {wildcards.sample_name}_{wildcards.sample_number}_{wildcards.bedfile} "
 
 	rule collect_custom_coverage:
 		input:
 			get_all_custom_coverage
 		output:
-			"output/depth/hotspot_coverage/custom.finished"
+			"temp/hotspot_coverage/custom.finished"
 		group:
 			"custom_coverage"
 		shell:
@@ -1434,20 +1436,20 @@ if panel == "IlluminaTruSightCancer":
 #-----------------------------------------------------------------------------------------------------------------#
 
 # Rules to create outputs. We have a seperate final rule for each assay.
-
 if config["perform_bqsr"] == True:
 
 	rule final:
 		input:
-			"output/validated_vcf/{seq_id}.validated",
-			expand("output/depth/metrics/" + seq_id + "_{sample_name}_{sample_number}_Gaps.bed", zip, sample_name=sample_names, sample_number=sample_numbers),
-			"output/variant_reports/{seq_id}_finished.txt",
-			"output/jointvcf_all_variants_filtered_genotype_roi_meta_nomt/{seq_id}_all_variants_filtered_genotype_roi_meta_nomt.vcf",
-			expand("output/qc_reports/bqsr/{sample_name}_{sample_number}_bqsr_covariation.csv", zip, sample_name=sample_names, sample_number=sample_numbers),
-			"output/qc_reports/multiqc/" + seq_id + ".html",
-			"output/qc_reports/combined_qc/" + seq_id + "_combined_QC.txt"
+			"temp/validated_vcf/{seqid}.validated",
+			expand("{sample_name}/" + seqid + "_{sample_name}_{sample_number}_Gaps.bed", zip, sample_name=sample_names, sample_number=sample_numbers),
+			"variant_reports/{seqid}_finished.txt",
+			"output/jointvcf_all_variants_filtered_genotype_roi_meta_nomt/{seqid}_all_variants_filtered_genotype_roi_meta_nomt.vcf",
+			expand("{sample_name}/" + seqid + "_{sample_name}_{sample_number}_recalibration.csv", zip, sample_name=sample_names, sample_number=sample_numbers),
+			seqid + "_combined_QC.txt",
+			"{seqid}.relatedness2",
+			"{seqid}_CollectVariantCallingMetrics.variant_calling_detail_metrics"
 		output:
-			"output/pipeline_finished/{seq_id}.finished"
+			"{seqid}.finished"
 		shell:
 			"touch {output}"
 
@@ -1458,17 +1460,18 @@ else:
 
 		rule final:
 			input:
-				"output/validated_vcf/{seq_id}.validated",
-				expand("output/manta/{sample_name}_{sample_number}_diploidSV.vcf.gz", zip, sample_name=sample_names, sample_number=sample_numbers),
-				expand("output/depth/metrics/" + seq_id + "_{sample_name}_{sample_number}_Gaps.bed",zip, sample_name=sample_names, sample_number=sample_numbers),
-				"output/depth/hotspot_coverage/custom.finished",
-				"output/variant_reports/{seq_id}_finished.txt",
-				"output/combined_sv_report/" + seq_id + "_cnvReport.csv",
-				"output/jointvcf_all_variants_filtered_genotype_roi_meta_nomt/{seq_id}_all_variants_filtered_genotype_roi_meta_nomt.vcf",
-				"output/qc_reports/multiqc/" + seq_id + ".html",
-				"output/qc_reports/combined_qc/" + seq_id + "_combined_QC.txt",
+				"temp/validated_vcf/{seqid}.validated",
+				expand("temp/manta/{sample_name}_{sample_number}_diploidSV.vcf.gz", zip, sample_name=sample_names, sample_number=sample_numbers),
+				expand("{sample_name}/" + seqid + "_{sample_name}_{sample_number}_Gaps.bed",zip, sample_name=sample_names, sample_number=sample_numbers),
+				"temp/hotspot_coverage/custom.finished",
+				"variant_reports/{seqid}_finished.txt",
+				seqid + "_cnvReport.csv",
+				"{seqid}_all_variants_filtered_genotype_roi_meta_nomt.vcf",
+				seqid + "_combined_QC.txt",
+				"{seqid}.relatedness2",
+				"{seqid}_CollectVariantCallingMetrics.variant_calling_detail_metrics"
 			output:
-				"output/pipeline_finished/{seq_id}.finished"
+				"{seqid}.finished"
 			shell:
 				"touch {output}"
 
@@ -1477,14 +1480,15 @@ else:
 
 		rule final:
 			input:
-				"output/validated_vcf/{seq_id}.validated",
-				"output/variant_reports/{seq_id}_finished.txt",
-				expand("output/depth/metrics/" + seq_id + "_{sample_name}_{sample_number}_Gaps.bed",zip, sample_name=sample_names, sample_number=sample_numbers),
-				"output/jointvcf_all_variants_filtered_genotype_roi_meta_nomt/{seq_id}_all_variants_filtered_genotype_roi_meta_nomt.vcf",
-				"output/qc_reports/multiqc/" + seq_id + ".html",
-				"output/qc_reports/combined_qc/" + seq_id + "_combined_QC.txt"
+				"temp/validated_vcf/{seqid}.validated",
+				"variant_reports/{seqid}_finished.txt",
+				expand("{sample_name}/" + seqid + "_{sample_name}_{sample_number}_Gaps.bed",zip, sample_name=sample_names, sample_number=sample_numbers),
+				"output/jointvcf_all_variants_filtered_genotype_roi_meta_nomt/{seqid}_all_variants_filtered_genotype_roi_meta_nomt.vcf",
+				seqid + "_combined_QC.txt",
+				"{seqid}.relatedness2",
+				"{seqid}_CollectVariantCallingMetrics.variant_calling_detail_metrics"
 			output:
-				"output/pipeline_finished/{seq_id}.finished"
+				"{seqid}.finished"
 			shell:
 				"touch {output}"
 

@@ -14,7 +14,7 @@ DICT=$6
 LOW_BAM_LIST=$7
 
 # If we have at least four bams with high coverage (more than 20x)
-if [[ -e $BAM_LIST ]] && [[ $(wc -l $BAM_LIST | awk '{print $1}') -gt 4 ]]; then
+if [[ -e $BAM_LIST ]] && [[ $(wc -l $BAM_LIST | awk '{print $1}') -gt 2 ]]; then
 
 
 	 #call CNVs using read depth

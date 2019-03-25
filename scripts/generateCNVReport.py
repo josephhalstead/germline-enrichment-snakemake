@@ -138,14 +138,17 @@ grouped_bed = grouped_bed.reset_index()
 
 
 #Loop through all samples and read in the relevant files
-for sample in samples_list: 
+for sample in samples_list:
+
+	sample_name = sample.split('_')[4]
+	sample_number = sample.split('_')[5]
 	
 	# Get the mean depth from the summary file
-	depth_of_coverage_summary = pandas.read_table(coverage_dir + '/' +  sample + '_DepthOfCoverage.sample_summary')
+	depth_of_coverage_summary = pandas.read_table(sample_name + '/' +  sample + '_DepthOfCoverage.sample_summary')
 	depth_of_coverage_summary_mean = depth_of_coverage_summary['mean'][1]
 	
 	#Create dataframe from manta vcf
-	manta_df = allel.vcf_to_dataframe(manta_dir + '/' + sample + '_diploidSV.vcf.gz' , fields=['*'])
+	manta_df = allel.vcf_to_dataframe(manta_dir + '/' + sample_name + '_' + sample_number + '_diploidSV.vcf.gz' , fields=['*'])
 
 	if manta_df is not None:
 
@@ -241,7 +244,7 @@ if manta_exome is not None:
 	final_df['Depth'] = final_df['depth']
 
 	# Write to TSV
-	final_df[['Sample', 'Method', 'Chr', 'Start', 'End', 'Ref', 'Type', 'Regions', 'QC', 'Depth', 'Gene']].to_csv(output_file, index=False, sep='\t')
+	final_df[['Sample', 'Method', 'Chr', 'Start', 'End', 'Ref', 'Type', 'Regions', 'QC', 'Depth', 'Gene']].to_csv(output_file, index=False, sep=',')
 
 
 

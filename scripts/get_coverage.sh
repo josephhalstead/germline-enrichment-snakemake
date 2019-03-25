@@ -13,6 +13,9 @@ SAMPLEID=$6
 MINIMUM_COVERAGE=$7
 REF_SEQ=$8
 PREFIX=$9
+SAMPLE_NAME="${10}"
+
+mkdir -p "$PREFIX"
 
 #Make BED file of all genes overlapping ROI
 bedtools intersect -wa \
@@ -69,7 +72,7 @@ bedtools subtract \
 -a "$PREFIX"/"$SAMPLEID"_ClinicalCoverageTargetsHotspots.bed \
 -b "$PREFIX"/"$SEQID"_"$SAMPLEID"_PASS.bed | \
 sort -k1,1V -k2,2n -k3,3n \
-> "$PREFIX"/"$SEQID"_"$SAMPLEID"_Gaps.bed
+> "$SAMPLE_NAME"/"$SEQID"_"$SAMPLEID"_Gaps.bed
 
 # Remove unneeded files
 rm "$PREFIX"/"$SAMPLEID"_TargetGenes.bed
