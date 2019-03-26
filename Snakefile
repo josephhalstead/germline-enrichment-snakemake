@@ -1237,7 +1237,6 @@ rule relatedness_test:
 		"temp/jointvcf_all_variants_filtered_genotype_roi/{seqid}_all_variants_filtered_genotype_roi.vcf"
 	output:
 		"{seqid}.relatedness2",
-		temp("{seqid}.log")
 	shell:
 		"vcftools --relatedness2 "
 		"--out {wildcards.seqid} "

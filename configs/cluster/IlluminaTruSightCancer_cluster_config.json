@@ -9,11 +9,7 @@
         "walltime" : "6:00:00",
         "ncpus" : 3
     },
-    "create_genomics_db" :
-    {
-        "walltime" : "6:00:00",
-        "ncpus" : 3
-    },
+    
     "genotype_gvcfs" :
     {
         "walltime" : "6:00:00",
@@ -21,6 +17,18 @@
     },
 
     "merge_and_remove_duplicates" :
+    {
+        "walltime" : "6:00:00",
+        "ncpus" : 6
+    },
+
+    "realign_indels" :
+    {
+        "walltime" : "6:00:00",
+        "ncpus" : 6
+    },
+
+    "identify_realignment_regions" :
     {
         "walltime" : "6:00:00",
         "ncpus" : 6
