@@ -1442,7 +1442,7 @@ if config["perform_bqsr"] == True:
 			"temp/validated_vcf/{seqid}.validated",
 			expand("{sample_name}/" + seqid + "_{sample_name}_{sample_number}_Gaps.bed", zip, sample_name=sample_names, sample_number=sample_numbers),
 			"variant_reports/{seqid}_finished.txt",
-			"output/jointvcf_all_variants_filtered_genotype_roi_meta_nomt/{seqid}_all_variants_filtered_genotype_roi_meta_nomt.vcf",
+			"{seqid}_all_variants_filtered_genotype_roi_meta_nomt.vcf",
 			expand("{sample_name}/" + seqid + "_{sample_name}_{sample_number}_recalibration.csv", zip, sample_name=sample_names, sample_number=sample_numbers),
 			seqid + "_combined_QC.txt",
 			"{seqid}.relatedness2",
@@ -1482,7 +1482,7 @@ else:
 				"temp/validated_vcf/{seqid}.validated",
 				"variant_reports/{seqid}_finished.txt",
 				expand("{sample_name}/" + seqid + "_{sample_name}_{sample_number}_Gaps.bed",zip, sample_name=sample_names, sample_number=sample_numbers),
-				"output/jointvcf_all_variants_filtered_genotype_roi_meta_nomt/{seqid}_all_variants_filtered_genotype_roi_meta_nomt.vcf",
+				"{seqid}_all_variants_filtered_genotype_roi_meta_nomt.vcf",
 				seqid + "_combined_QC.txt",
 				"{seqid}.relatedness2",
 				"{seqid}_CollectVariantCallingMetrics.variant_calling_detail_metrics"
