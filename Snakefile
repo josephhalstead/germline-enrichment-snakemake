@@ -35,9 +35,9 @@ seqid = config["seqId"]
 # Utility Input Functions For Getting Files
 #-----------------------------------------------------------------------------------------------------------------#
 
-def get_fastqc(wildcards):
+def get_fastq_screen(wildcards):
 	"""	
-	Function to return the fastqc file input into multiqc
+	Function to return the fastq screen file input into the final rule
 	https://groups.google.com/forum/#!topic/snakemake/xxdADOSK7mY
 
 	"""
@@ -46,8 +46,8 @@ def get_fastqc(wildcards):
 
 		for sample_name, sample_number in zip(sample_names,sample_numbers ):
 
-			file_list.append(sample_name + "/" + sample_name + "_" + sample_number + "_" + lane + "_R1_001_qfilter_fastqc.html" )
-			file_list.append(sample_name + "/" + sample_name + "_" + sample_number + "_" + lane + "_R2_001_qfilter_fastqc.html" )
+			file_list.append(sample_name + "/" + seqid + "_" + sample_name + "_" + sample_number + "_" + lane + "_R1_001_qfilter_screen.txt" )
+			file_list.append(sample_name + "/" + seqid + "_" + sample_name + "_" + sample_number + "_" + lane + "_R2_001_qfilter_screen.txt" )
 
 	return file_list
 
@@ -118,15 +118,15 @@ rule fastp:
 # Check for inter-species contamination
 rule fastq_screen:
 	input:
-		fwd = "{sample_name}/{sample_name}_{sample_number}_{lane}_R1_001.fastq.gz",
-		rev = "{sample_name}/{sample_name}_{sample_number}_{lane}_R2_001.fastq.gz"
+		fwd = "{sample_name}/" + seqid + "_{sample_name}_{sample_number}_{lane}_R1_001_qfilter.fastq.gz",
+		rev = "{sample_name}/" + seqid  + "_{sample_name}_{sample_number}_{lane}_R2_001_qfilter.fastq.gz"
 	output:
-		"{sample_name}/" + seqid + "_{sample_name}_{sample_number}_{lane}_R1_001_screen.html",
-		temp("{sample_name}/" + seqid + "_{sample_name}_{sample_number}_{lane}_R1_001_screen.png"),
-		"{sample_name}/" + seqid + "_{sample_name}_{sample_number}_{lane}_R1_001_screen.txt",
-		"{sample_name}/" + seqid + "_{sample_name}_{sample_number}_{lane}_R2_001_screen.html",
-		temp("{sample_name}" + seqid + "_/{sample_name}_{sample_number}_{lane}_R2_001_screen.png"),
-		"{sample_name}/" + seqid + "_{sample_name}_{sample_number}_{lane}_R2_001_screen.txt"	
+		"{sample_name}/" + seqid + "_{sample_name}_{sample_number}_{lane}_R1_001_qfilter_screen.html",
+		temp("{sample_name}/" + seqid + "_{sample_name}_{sample_number}_{lane}_R1_001_qfilter_screen.png"),
+		"{sample_name}/" + seqid + "_{sample_name}_{sample_number}_{lane}_R1_001_qfilter_screen.txt",
+		"{sample_name}/" + seqid + "_{sample_name}_{sample_number}_{lane}_R2_001_qfilter_screen.html",
+		temp("{sample_name}/" + seqid + "_{sample_name}_{sample_number}_{lane}_R2_001_qfilter_screen.png"),
+		"{sample_name}/" + seqid + "_{sample_name}_{sample_number}_{lane}_R2_001_qfilter_screen.txt"	
 	threads:
 		config["fastq_screen_threads"]
 	params:
@@ -579,7 +579,9 @@ rule calculate_coverage_metrics:
 		depth = "{sample_name}/" + seqid + "_{sample_name}_{sample_number}_DepthOfCoverage.gz",
 		index = "{sample_name}/" + seqid + "_{sample_name}_{sample_number}_DepthOfCoverage.gz.tbi"	
 	output:
-		"{sample_name}/" + seqid + "_{sample_name}_{sample_number}_Gaps.bed"
+		"{sample_name}/" + seqid + "_{sample_name}_{sample_number}_Gaps.bed",
+		"{sample_name}/" + seqid + "_{sample_name}_{sample_number}_ClinicalCoverageTargetMetrics.txt",
+		"{sample_name}/" + seqid + "_{sample_name}_{sample_number}_ClinicalCoverageGeneCoverage.txt"
 	params:
 		roi_bed = config["capture_bed_file"],
 		panel = panel,
@@ -1446,7 +1448,8 @@ if config["perform_bqsr"] == True:
 			expand("{sample_name}/" + seqid + "_{sample_name}_{sample_number}_recalibration.csv", zip, sample_name=sample_names, sample_number=sample_numbers),
 			seqid + "_combined_QC.txt",
 			"{seqid}.relatedness2",
-			"{seqid}_CollectVariantCallingMetrics.variant_calling_detail_metrics"
+			"{seqid}_CollectVariantCallingMetrics.variant_calling_detail_metrics",
+			get_fastq_screen
 		output:
 			"{seqid}.finished"
 		shell:
@@ -1468,7 +1471,8 @@ else:
 				"{seqid}_all_variants_filtered_genotype_roi_meta_nomt.vcf",
 				seqid + "_combined_QC.txt",
 				"{seqid}.relatedness2",
-				"{seqid}_CollectVariantCallingMetrics.variant_calling_detail_metrics"
+				"{seqid}_CollectVariantCallingMetrics.variant_calling_detail_metrics",
+				get_fastq_screen
 			output:
 				"{seqid}.finished"
 			shell:
@@ -1485,7 +1489,8 @@ else:
 				"{seqid}_all_variants_filtered_genotype_roi_meta_nomt.vcf",
 				seqid + "_combined_QC.txt",
 				"{seqid}.relatedness2",
-				"{seqid}_CollectVariantCallingMetrics.variant_calling_detail_metrics"
+				"{seqid}_CollectVariantCallingMetrics.variant_calling_detail_metrics",
+				get_fastq_screen
 			output:
 				"{seqid}.finished"
 			shell:

@@ -63,9 +63,9 @@ bedtools merge > "$PREFIX"/"$SEQID"_"$SAMPLEID"_PASS.bed
 bedtools coverage \
 -a "$PREFIX"/"$SAMPLEID"_ClinicalCoverageTargetsHotspots.bed \
 -b "$PREFIX"/"$SEQID"_"$SAMPLEID"_PASS.bed | \
-tee "$PREFIX"/"$SEQID"_"$SAMPLEID"_ClinicalCoverageTargetMetrics.txt | \
+tee "$SAMPLE_NAME"/"$SEQID"_"$SAMPLEID"_ClinicalCoverageTargetMetrics.txt | \
 awk '{pass[$4]+=$6; len[$4]+=$7} END { for(i in pass) printf "%s\t %.2f%\n", i, (pass[i]/len[i]) * 100 }' | \
-sort -k1,1 > "$PREFIX"/"$SEQID"_"$SAMPLEID"_ClinicalCoverageGeneCoverage.txt
+sort -k1,1 > "$SAMPLE_NAME"/"$SEQID"_"$SAMPLEID"_ClinicalCoverageGeneCoverage.txt
 
 #Make GAP BED
 bedtools subtract \

@@ -21,17 +21,17 @@
 ##
 ## Human - sequences available from
 ## ftp://ftp.ensembl.org/pub/current/fasta/homo_sapiens/dna/
-DATABASE	Human	/Users/josephhalstead/Documents/genomics_resources/bwa/human_g1k_v37.fasta
+DATABASE	Human	/media/sf_Documents/genomics_resources/bwa/human_g1k_v37.fasta
 ##
 ## Mouse - sequence available from
 ## ftp://ftp.ensembl.org/pub/current/fasta/mus_musculus/dna/
-DATABASE	Mouse	/Users/josephhalstead/Documents/genomics_resources/refs/other/Mus_musculus.NCBIM37.67.dna.toplevel.fa
+DATABASE	Mouse	/media/sf_Documents/genomics_resources/refs/other/Mus_musculus.NCBIM37.67.dna.toplevel.fa
 ##
 ## Ecoli- sequence available from EMBL accession U00096.2
-DATABASE	Ecoli	/Users/josephhalstead/Documents/genomics_resources/refs/other/E_coli_K12.fasta
+DATABASE	Ecoli	/media/sf_Documents/genomics_resources/refs/other/E_coli_K12.fasta
 ##
 ## PhiX - sequence available from Refseq accession NC_001422.1
-DATABASE	PhiX	/Users/josephhalstead/Documents/genomics_resources/refs/phix/genome.fa
+DATABASE	PhiX	/media/sf_Documents/genomics_resources/refs/phix/genome.fa
 ##
 ## Adapters - sequence derived from the FastQC contaminats file found at: www.bioinformatics.babraham.ac.uk/projects/fastqc
 #DATABASE	Adapters	/data/public/Genomes/Contaminants/Contaminants
@@ -41,4 +41,4 @@ DATABASE	PhiX	/Users/josephhalstead/Documents/genomics_resources/refs/phix/genom
 #DATABASE	Vectors		/data/public/Genomes/Vectors/Vectors
 
 #Yeast
-DATABASE	Yeast	/Users/josephhalstead/Documents/genomics_resources/refs/other/Saccharomyces_cerevisiae.R64-1-1.dna.toplevel.fa
+DATABASE	Yeast	/media/sf_Documents/genomics_resources/refs/other/Saccharomyces_cerevisiae.R64-1-1.dna.toplevel.fa
